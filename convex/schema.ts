@@ -19,7 +19,7 @@ export default defineSchema({
     decisionId: v.id("decisions"),
     sender: v.union(v.literal("user"), v.literal("ai")),
     content: v.string(),
-  }),
+  }).index("by_decisionId", ["decisionId"]),
 
   decision_context: defineTable({
     decisionId: v.id("decisions"),

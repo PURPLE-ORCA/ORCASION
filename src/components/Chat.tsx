@@ -7,26 +7,39 @@ import { useState } from "react";
 import { Id } from "../../convex/_generated/dataModel";
 import AnimatedInput from "./ui/AnimatedInput";
 import { Button } from "./ui/button";
+import { useParams } from "next/navigation";
 
-export default function Chat({ decisionId }: { decisionId: Id<"decisions"> }) {
-  const messages = useQuery(api.messages.listMessages, { decisionId });
+export default function Chat() {
+  const params = useParams();
+  const decisionId = params.decisionId as Id<"decisions">;
+
+  const messages = useQuery(
+    api.messages.listMessages,
+    decisionId ? { decisionId } : "skip"
+  );
   const [content, setContent] = useState("");
   const addMessage = useMutation(api.messages.addMessage);
   const getAiResponse = useAction(api.ai.getAiResponse);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (content.trim()) {
-      addMessage({
-        decisionId,
-        content,
-        sender: "user",
-      });
-      getAiResponse({
-        decisionId,
-        message: content,
-      });
-      setContent("");
+      try {
+        await addMessage({
+          decisionId,
+          content,
+          sender: "user",
+        });
+
+        await getAiResponse({
+          decisionId,
+          message: content,
+        });
+
+        setContent("");
+      } catch (error) {
+        console.error("Error submitting message:", error);
+      }
     }
   };
 

@@ -22,10 +22,10 @@ const SiriOrb: React.FC<SiriOrbProps> = ({
 }) => {
   const defaultColors = {
     bg: "oklch(95% 0.02 264.695)",
-    c1: "oklch(75% 0.15 350)", // Pastel pink
-    c2: "oklch(80% 0.12 200)", // Pastel blue
-    c3: "oklch(78% 0.14 280)", // Pastel purple/lavender
-  }
+    c1: "#57057d", // Pastel pink
+    c2: "#7709ab", // Pastel blue
+    c3: "#20022e", // Pastel purple/lavender
+  };
 
   const finalColors = { ...defaultColors, ...colors }
 

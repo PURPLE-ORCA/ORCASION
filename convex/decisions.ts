@@ -7,9 +7,8 @@ export const createDecision = mutation({
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
-
-    if (identity === null) {
-      throw new Error("Cannot create decision for unauthenticated user.");
+    if (!identity) {
+      throw new Error("Called createDecision without authentication present");
     }
 
     const user = await ctx.db
@@ -18,7 +17,7 @@ export const createDecision = mutation({
       .unique();
 
     if (user === null) {
-        throw new Error("User not found.");
+      throw new Error("User not found");
     }
 
     const decisionId = await ctx.db.insert("decisions", {
@@ -40,17 +39,50 @@ export const getDecisions = query({
     }
 
     const user = await ctx.db
-        .query("users")
-        .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-        .unique();
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+      .unique();
 
     if (user === null) {
-        return [];
+      return [];
     }
 
     return await ctx.db
       .query("decisions")
       .filter((q) => q.eq(q.field("userId"), user._id))
       .collect();
+  },
+});
+
+export const startDecision = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Called startDecision without authentication present");
+    }
+
+    // Find user or create a new one
+    let user = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+      .unique();
+
+    if (user === null) {
+      const userId = await ctx.db.insert("users", {
+        clerkId: identity.subject,
+        name: identity.name!,
+      });
+      user = (await ctx.db.get(userId))!;
+    }
+
+    // Create a new decision for the user
+    const decisionId = await ctx.db.insert("decisions", {
+      userId: user._id,
+      title: "Untitled Decision",
+      status: "in-progress",
+    });
+
+    return decisionId;
   },
 });

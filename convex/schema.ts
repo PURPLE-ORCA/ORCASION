@@ -13,7 +13,7 @@ export default defineSchema({
     status: v.union(v.literal("in-progress"), v.literal("completed")),
     finalChoice: v.optional(v.string()),
     confidenceScore: v.optional(v.number()),
-  }),
+  }).index("by_userId", ["userId"]),
 
   decision_messages: defineTable({
     decisionId: v.id("decisions"),

@@ -33,7 +33,6 @@ export default function Chat() {
 
         await getAiResponse({
           decisionId,
-          message: content,
         });
 
         setContent("");

@@ -1,4 +1,6 @@
 import { Doc } from "../../convex/_generated/dataModel";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 export default function Message({ message }: { message: Doc<"decision_messages"> }) {
   const isUser = message.sender === "user";
@@ -11,7 +13,14 @@ export default function Message({ message }: { message: Doc<"decision_messages">
             : "bg-muted text-muted-foreground"
         }`}
       >
-        {message.content}
+        {/* TODO: User needs to manually install react-markdown and remark-gfm */}
+        {isUser ? (
+          message.content
+        ) : (
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            {message.content}
+          </ReactMarkdown>
+        )}
       </div>
     </div>
   );

@@ -34,17 +34,15 @@ export const DecisionHistory = () => {
             </div>
         </div>
         <div>
-          <Link href="/">
-            <SidebarLink
-              link={{
-                label: "New Decision",
-                href: "/",
-                icon: (
-                  <IconPlus className="text-neutral-700 dark:text-neutral-200 h-5 w-5 shrink-0" />
-                ),
-              }}
-            />
-          </Link>
+          <SidebarLink
+            link={{
+              label: "New Decision",
+              href: "/",
+              icon: (
+                <IconPlus className="text-neutral-700 dark:text-neutral-200 h-5 w-5 shrink-0" />
+              ),
+            }}
+          />
         </div>
       </SidebarBody>
     </Sidebar>

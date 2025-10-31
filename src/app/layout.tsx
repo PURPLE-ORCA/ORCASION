@@ -3,6 +3,7 @@ import { ClerkProvider, UserButton } from "@clerk/nextjs";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { DecisionHistory } from "@/components/DecisionHistory";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -30,14 +31,17 @@ export default function RootLayout({
     >
       <html lang="en" className="dark">
         <body
-          className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gradient-to-br from-[#0a0a0a] via-[#1a001a] to-[#0a0a0a] text-white`}
+          className={`${geistSans.variable} ${geistMono.variable} antialiased bg-linear-to-br from-[#0a0a0a] via-[#1a001a] to-[#0a0a0a] text-white h-screen overflow-hidden`}
         >
           <header className="fixed top-4 right-4 z-10">
             <UserButton afterSignOutUrl="/" />
           </header>
-          <main className="min-h-screen p-8">
-            <ConvexClientProvider>{children}</ConvexClientProvider>
-          </main>
+          <ConvexClientProvider>
+            <div className="flex h-full">
+              <DecisionHistory />
+              <main className="flex-1 p-8 overflow-y-auto">{children}</main>
+            </div>
+          </ConvexClientProvider>
         </body>
       </html>
     </ClerkProvider>

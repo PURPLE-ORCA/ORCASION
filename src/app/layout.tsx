@@ -28,14 +28,14 @@ export default function RootLayout({
     <ClerkProvider
       publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY!}
     >
-      <html lang="en">
+      <html lang="en" className="dark">
         <body
-          className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+          className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gradient-to-br from-[#0a0a0a] via-[#1a001a] to-[#0a0a0a] text-white`}
         >
           <header className="fixed top-4 right-4 z-10">
             <UserButton afterSignOutUrl="/" />
           </header>
-          <main>
+          <main className="min-h-screen p-8">
             <ConvexClientProvider>{children}</ConvexClientProvider>
           </main>
         </body>

@@ -12,7 +12,7 @@ export default defineSchema({
     title: v.string(),
     status: v.union(v.literal("in-progress"), v.literal("completed")),
     finalChoice: v.optional(v.string()),
-    confidenceScore: v.optional(v.number()),
+    confidenceScore: v.optional(v.float64()),
   }).index("by_userId", ["userId"]),
 
   decision_messages: defineTable({
@@ -26,7 +26,7 @@ export default defineSchema({
     criteria: v.array(
       v.object({
         name: v.string(),
-        weight: v.number(),
+        weight: v.float64(),
       })
     ),
     options: v.array(
@@ -34,9 +34,12 @@ export default defineSchema({
         name: v.string(),
         pros: v.array(v.string()),
         cons: v.array(v.string()),
-        score: v.number(),
+        score: v.float64(),
       })
     ),
+    reasoning: v.string(),
+    finalChoice: v.string(),
+    confidenceScore: v.float64(),
     modelUsed: v.optional(v.union(v.literal("deepseek-v3.1"), v.literal("qwen3"))),
-  }),
+  }).index("by_decisionId", ["decisionId"]),
 });

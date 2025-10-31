@@ -40,7 +40,7 @@ export default function Home() {
   // 1. Primary Loading State: Waiting for authentication to resolve.
   if (isAuthLoading) {
     return (
-      <main className="flex min-h-screen flex-col items-center justify-center p-24">
+      <main className="flex min-h-screen flex-col items-center justify-center">
         <SiriOrb />
         <p className="mt-4">Signing in...</p>
       </main>
@@ -52,7 +52,7 @@ export default function Home() {
     // Still waiting for the decisions query to load after auth.
     if (decisions === undefined) {
       return (
-        <main className="flex min-h-screen flex-col items-center justify-center p-24">
+        <main className="flex min-h-screen flex-col items-center justify-center">
           <SiriOrb />
           <p className="mt-4">Loading your decisions...</p>
         </main>
@@ -62,7 +62,7 @@ export default function Home() {
     // The user has no decisions, prompt them to start one.
     if (decisions.length === 0) {
       return (
-        <main className="flex min-h-screen flex-col items-center justify-center p-24">
+        <main className="flex min-h-screen flex-col items-center justify-center">
           <div className="flex flex-col items-center gap-4">
             <h2 className="text-2xl font-bold">Welcome to Orcasion</h2>
             <p>Click the button below to start your first decision.</p>

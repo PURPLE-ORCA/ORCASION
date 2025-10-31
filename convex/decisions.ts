@@ -30,6 +30,15 @@ export const createDecision = mutation({
   },
 });
 
+export const getDecision = query({
+  args: {
+    decisionId: v.id("decisions"),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.decisionId);
+  },
+});
+
 export const getDecisions = query({
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();

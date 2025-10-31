@@ -37,7 +37,7 @@ export const listMessages = query({
 
     return await ctx.db
       .query("decision_messages")
-      .withIndex("by_decisionId", (q) => q.eq("decisionId", args.decisionId))
+      .filter((q) => q.eq(q.field("decisionId"), args.decisionId))
       .collect();
   },
 });

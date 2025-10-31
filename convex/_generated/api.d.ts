@@ -9,6 +9,7 @@
  */
 
 import type * as ai from "../ai.js";
+import type * as decision_context from "../decision_context.js";
 import type * as decisions from "../decisions.js";
 import type * as messages from "../messages.js";
 import type * as users from "../users.js";
@@ -29,6 +30,7 @@ import type {
  */
 declare const fullApi: ApiFromModules<{
   ai: typeof ai;
+  decision_context: typeof decision_context;
   decisions: typeof decisions;
   messages: typeof messages;
   users: typeof users;

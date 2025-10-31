@@ -44,7 +44,36 @@ export const getAiResponse = action({
         if (apiMessages.length === 1) {
             apiMessages.unshift({
                 role: "system",
-                content: "You are Orcasion, a decision-making assistant. Your personality is confident, witty, and a little sarcastic. Your goal is to help the user make a decision by asking clarifying questions to understand their criteria and options. When you have enough information, provide a structured analysis and a final recommendation. Never give a TED talk; give bold advice.",
+                content: `You are Orcasion, a decision-making assistant. Your personality is confident, witty, and a little sarcastic. Your goal is to help the user make a decision by asking clarifying questions to understand their criteria and options. When you have enough information, provide a structured analysis and a final recommendation. Never give a TED talk; give bold advice.
+
+If you have enough information to make a recommendation, output a JSON object with the following structure:
+{
+  "decision": {
+    "finalChoice": "Recommended Option Name",
+    "confidenceScore": 0.95, // A score from 0.0 to 1.0
+    "reasoning": "A concise explanation of why this option is recommended based on the criteria and scores."
+  },
+  "criteria": [
+    { "name": "Criterion 1", "weight": 0.8 },
+    { "name": "Criterion 2", "weight": 0.6 }
+  ],
+  "options": [
+    {
+      "name": "Option A",
+      "pros": ["Pro 1", "Pro 2"],
+      "cons": ["Con 1"],
+      "score": 0.9 // A score from 0.0 to 1.0 based on criteria
+    },
+    {
+      "name": "Option B",
+      "pros": ["Pro 1"],
+      "cons": ["Con 1", "Con 2"],
+      "score": 0.7
+    }
+  ]
+}
+
+Otherwise, continue the conversation by asking clarifying questions.`,
             });
         }
 
@@ -73,12 +102,41 @@ export const getAiResponse = action({
             const responseData = await response.json();
             const aiResponse = responseData.choices[0].message.content;
 
-            // 5. Save the AI's response to the database.
-            await ctx.runMutation(api.messages.addMessage, {
-                decisionId: args.decisionId,
-                content: aiResponse.trim(),
-                sender: "ai",
-            });
+            try {
+                const parsedResponse = JSON.parse(aiResponse);
+                if (parsedResponse.decision && parsedResponse.criteria && parsedResponse.options) {
+                    // If the AI returns a structured decision, save it to decision_context
+                    await ctx.runMutation(api.decision_context.addDecisionContext, {
+                        decisionId: args.decisionId,
+                        criteria: parsedResponse.criteria,
+                        options: parsedResponse.options,
+                        finalChoice: parsedResponse.decision.finalChoice,
+                        confidenceScore: parsedResponse.decision.confidenceScore,
+                        reasoning: parsedResponse.decision.reasoning,
+                        modelUsed: MODEL_NAME,
+                    });
+                    // Also save the reasoning as a regular message for chat history
+                    await ctx.runMutation(api.messages.addMessage, {
+                        decisionId: args.decisionId,
+                        content: parsedResponse.decision.reasoning.trim(),
+                        sender: "ai",
+                    });
+                } else {
+                    // If not a structured decision, save as a regular message
+                    await ctx.runMutation(api.messages.addMessage, {
+                        decisionId: args.decisionId,
+                        content: aiResponse.trim(),
+                        sender: "ai",
+                    });
+                }
+            } catch (jsonError) {
+                // If JSON parsing fails, save the raw response as a regular message
+                await ctx.runMutation(api.messages.addMessage, {
+                    decisionId: args.decisionId,
+                    content: aiResponse.trim(),
+                    sender: "ai",
+                });
+            }
 
         } catch (error) {
             console.error("Error calling AI model:", error);

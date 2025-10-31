@@ -40,6 +40,44 @@ export const addDecisionContext = mutation({
   },
 });
 
+export const updateDecisionContext = mutation({
+  args: {
+    decisionId: v.id("decisions"),
+    criteria: v.array(v.object({ name: v.string(), weight: v.float64() })),
+    options: v.array(
+      v.object({
+        name: v.string(),
+        pros: v.array(v.string()),
+        cons: v.array(v.string()),
+        score: v.float64(),
+      })
+    ),
+    finalChoice: v.string(),
+    confidenceScore: v.float64(),
+    reasoning: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const { decisionId, criteria, options, finalChoice, confidenceScore, reasoning } = args;
+
+    const existingContext = await ctx.db
+      .query("decision_context")
+      .filter((q) => q.eq(q.field("decisionId"), decisionId))
+      .first();
+
+    if (!existingContext) {
+      throw new Error("Decision context not found.");
+    }
+
+    await ctx.db.patch(existingContext._id, {
+      criteria,
+      options,
+      finalChoice,
+      confidenceScore,
+      reasoning,
+    });
+  },
+});
+
 export const getDecisionContext = query({
   args: {
     decisionId: v.id("decisions"),

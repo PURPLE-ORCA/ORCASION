@@ -1,9 +1,21 @@
 "use client";
 
-import React from 'react';
-import { useQuery } from "convex/react";
+import React, { useState, useEffect } from 'react';
+import { useQuery, useAction } from "convex/react"; // Changed useMutation to useAction
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Slider } from "@/components/ui/slider";
+import { Button } from "@/components/ui/button";
 
 interface DecisionReportProps {
   decisionId: Id<"decisions">;
@@ -14,54 +26,135 @@ const DecisionReport: React.FC<DecisionReportProps> = ({ decisionId }) => {
     decisionId,
   });
 
+  const recalculateDecision = useAction(api.ai.recalculateDecision); // Use the new action
+
+  const [localCriteria, setLocalCriteria] = useState(decisionContext?.criteria || []);
+
+  useEffect(() => {
+    if (decisionContext?.criteria) {
+      setLocalCriteria(decisionContext.criteria);
+    }
+  }, [decisionContext?.criteria]);
+
   if (!decisionContext) {
-    return null; // Or a loading spinner
+    return (
+      <div className="flex items-center justify-center mt-8">
+        <div className="w-8 h-8 border-4 border-purple-400 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
   }
 
-  const { finalChoice, confidenceScore, reasoning, criteria, options } = decisionContext;
+  const { finalChoice, confidenceScore, reasoning, options } = decisionContext;
+
+  const handleWeightChange = (index: number, newWeight: number[]) => {
+    setLocalCriteria((prevCriteria) =>
+      prevCriteria.map((criterion, i) =>
+        i === index ? { ...criterion, weight: newWeight[0] } : criterion
+      )
+    );
+  };
+
+  const handleRecalculate = async () => {
+    await recalculateDecision({
+      decisionId,
+      criteria: localCriteria,
+    });
+  };
 
   return (
-    <div className="mt-8 p-6 bg-gray-800 rounded-lg shadow-lg text-white w-full max-w-2xl">
-      <h2 className="text-3xl font-bold mb-4 text-purple-400">Decision Report</h2>
-      <div className="mb-6">
-        <h3 className="text-xl font-semibold mb-2">Final Recommendation:</h3>
-        <p className="text-2xl font-bold text-green-400">{finalChoice}</p>
-        <p className="text-lg mt-2">Confidence Score: {(confidenceScore * 100).toFixed(0)}%</p>
-        <p className="mt-4">Reasoning: {reasoning}</p>
-      </div>
+    <Card className="mt-8 w-full max-w-3xl mx-auto bg-gray-800 border-gray-700 text-white">
+      <CardHeader>
+        <CardTitle className="text-3xl font-bold text-center text-purple-400">
+          Decision Report
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <Card className="bg-gray-700 border-gray-600">
+          <CardHeader>
+            <CardTitle className="text-xl text-green-400">
+              Final Recommendation
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="text-lg">
+            <p className="text-2xl font-bold">{finalChoice}</p>
+            <p className="mt-2">
+              <span className="font-semibold">Confidence Score:</span>{" "}
+              {(confidenceScore * 100).toFixed(0)}%
+            </p>
+            <Separator className="my-4 bg-gray-600" />
+            <p>
+              <span className="font-semibold">Reasoning:</span> {reasoning}
+            </p>
+          </CardContent>
+        </Card>
 
-      <div className="mb-6">
-        <h3 className="text-xl font-semibold mb-2">Criteria:</h3>
-        <ul className="list-disc list-inside">
-          {criteria.map((criterion, index) => (
-            <li key={index}>{criterion.name} (Weight: {criterion.weight.toFixed(1)})</li>
-          ))}
-        </ul>
-      </div>
-
-      <div>
-        <h3 className="text-xl font-semibold mb-2">Options:</h3>
-        {options.map((option, index) => (
-          <div key={index} className="mb-4 p-4 bg-gray-700 rounded-md">
-            <p className="text-xl font-bold mb-1">{option.name} (Score: {option.score.toFixed(2)})</p>
-            <div className="ml-4">
-              <p className="font-semibold">Pros:</p>
-              <ul className="list-disc list-inside text-green-300">
-                {option.pros.map((pro, i) => (
-                  <li key={i}>{pro}</li>
-                ))}
-              </ul>
-              <p className="font-semibold mt-2">Cons:</p>
-              <ul className="list-disc list-inside text-red-300">
-                {option.cons.map((con, i) => (
-                  <li key={i}>{con}</li>
-                ))}
-              </ul>
+        <Card className="bg-gray-700 border-gray-600">
+          <CardHeader>
+            <CardTitle className="text-xl">Your Criteria</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {localCriteria.map((criterion, index) => (
+                <div key={index} className="flex items-center gap-4">
+                  <span className="w-32">{criterion.name}</span>
+                  <Slider
+                    defaultValue={[criterion.weight]}
+                    max={10}
+                    step={0.1}
+                    onValueChange={(newWeight) => handleWeightChange(index, newWeight)}
+                    className="flex-1"
+                  />
+                  <span className="w-10 text-right">{criterion.weight.toFixed(1)}</span>
+                </div>
+              ))}
             </div>
-          </div>
-        ))}
-      </div>
-    </div>
+            <Button onClick={handleRecalculate} className="mt-6 w-full">
+              Recalculate Decision
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gray-700 border-gray-600">
+          <CardHeader>
+            <CardTitle className="text-xl">Options Analysis</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow className="border-gray-600">
+                  <TableHead className="text-white">Option</TableHead>
+                  <TableHead className="text-white">Score</TableHead>
+                  <TableHead className="text-white">Pros</TableHead>
+                  <TableHead className="text-white">Cons</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {options.map((option, index) => (
+                  <TableRow key={index} className="border-gray-600">
+                    <TableCell className="font-bold">{option.name}</TableCell>
+                    <TableCell>{option.score.toFixed(2)}</TableCell>
+                    <TableCell>
+                      <ul className="list-disc list-inside text-green-300">
+                        {option.pros.map((pro, i) => (
+                          <li key={i}>{pro}</li>
+                        ))}
+                      </ul>
+                    </TableCell>
+                    <TableCell>
+                      <ul className="list-disc list-inside text-red-300">
+                        {option.cons.map((con, i) => (
+                          <li key={i}>{con}</li>
+                        ))}
+                      </ul>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </CardContent>
+    </Card>
   );
 };
 

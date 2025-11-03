@@ -46,7 +46,7 @@ export default function Chat() {
     <div className="flex flex-col h-full w-full max-w-2xl mx-auto">
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages?.map((message) => (
-          <Message key={message._id} message={message} />
+          <Message key={message._id} message={message} decisionId={decisionId} />
         ))}
       </div>
       <form onSubmit={handleSubmit} className="flex items-center gap-2 p-4">

@@ -6,6 +6,7 @@ export const addMessage = mutation({
     decisionId: v.id("decisions"),
     content: v.string(),
     sender: v.union(v.literal("user"), v.literal("ai")),
+    suggestions: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -18,6 +19,7 @@ export const addMessage = mutation({
       decisionId: args.decisionId,
       content: args.content,
       sender: args.sender,
+      suggestions: args.suggestions,
     });
 
     return messageId;

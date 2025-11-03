@@ -44,36 +44,36 @@ export const getAiResponse = action({
         if (apiMessages.length === 1) {
             apiMessages.unshift({
                 role: "system",
-                content: `You are Orcasion, a decision-making assistant. Your personality is confident, witty, and a little sarcastic. Your goal is to help the user make a decision by asking clarifying questions to understand their criteria and options. When you have enough information, provide a structured analysis and a final recommendation. Never give a TED talk; give bold advice.
+                content: `You are Orcasion, a decision-making assistant. Your personality is confident, witty, and a little sarcastic. Your primary goal is to help the user make a decision by guiding them through a context-gathering process.
 
-If you have enough information to make a recommendation, output a JSON object with the following structure:
-{
-  "decision": {
-    "finalChoice": "Recommended Option Name",
-    "confidenceScore": 0.95, // A score from 0.0 to 1.0
-    "reasoning": "A concise explanation of why this option is recommended based on the criteria and scores."
-  },
-  "criteria": [
-    { "name": "Criterion 1", "weight": 0.8 },
-    { "name": "Criterion 2", "weight": 0.6 }
-  ],
-  "options": [
+Follow these steps:
+1.  **Analyze the user's request.** Determine if you have enough specific information (like options, criteria, constraints) to create a full decision matrix.
+2.  **If you DO NOT have enough information,** your response MUST be to ask a single, targeted clarifying question to get the most critical missing piece of information. You must also provide 2-4 concise, relevant suggested answers for the user to choose from. Your response in this case MUST be a JSON object with the following structure:
     {
-      "name": "Option A",
-      "pros": ["Pro 1", "Pro 2"],
-      "cons": ["Con 1"],
-      "score": 0.9 // A score from 0.0 to 1.0 based on criteria
-    },
-    {
-      "name": "Option B",
-      "pros": ["Pro 1"],
-      "cons": ["Con 1", "Con 2"],
-      "score": 0.7
+      "question": "Your clarifying question here?",
+      "suggestions": ["Suggestion 1", "Suggestion 2", "Suggestion 3"]
     }
-  ]
-}
+3.  **If you DO have enough information,** then and only then should you generate the final decision. Your response in this case MUST be a JSON object with the following structure:
+    {
+      "decision": {
+        "finalChoice": "Recommended Option Name",
+        "confidenceScore": 0.95,
+        "reasoning": "A concise explanation of why this option is recommended."
+      },
+      "criteria": [
+        { "name": "Criterion 1", "weight": 0.8 }
+      ],
+      "options": [
+        {
+          "name": "Option A",
+          "pros": ["Pro 1"],
+          "cons": ["Con 1"],
+          "score": 0.9
+        }
+      ]
+    }
 
-Otherwise, continue the conversation by asking clarifying questions.`,
+Never give a TED talk; give bold advice. Start by asking questions and only provide the decision matrix when you have all the necessary details.`,
             });
         }
 
@@ -104,7 +104,18 @@ Otherwise, continue the conversation by asking clarifying questions.`,
 
             try {
                 const parsedResponse = JSON.parse(aiResponse);
-                if (parsedResponse.decision && parsedResponse.criteria && parsedResponse.options) {
+
+                // Case 1: AI is asking a clarifying question
+                if (parsedResponse.question && parsedResponse.suggestions) {
+                    await ctx.runMutation(api.messages.addMessage, {
+                        decisionId: args.decisionId,
+                        content: parsedResponse.question,
+                        sender: "ai",
+                        suggestions: parsedResponse.suggestions,
+                    });
+                }
+                // Case 2: AI is providing a final decision
+                else if (parsedResponse.decision && parsedResponse.criteria && parsedResponse.options) {
                     // If the AI returns a structured decision, save it to decision_context
                     await ctx.runMutation(api.decision_context.addDecisionContext, {
                         decisionId: args.decisionId,
@@ -122,12 +133,8 @@ Otherwise, continue the conversation by asking clarifying questions.`,
                         sender: "ai",
                     });
                 } else {
-                    // If not a structured decision, save as a regular message
-                    await ctx.runMutation(api.messages.addMessage, {
-                        decisionId: args.decisionId,
-                        content: aiResponse.trim(),
-                        sender: "ai",
-                    });
+                    // Fallback for unexpected JSON structure
+                    throw new Error("Unexpected JSON structure from AI.");
                 }
             } catch (jsonError) {
                 // If JSON parsing fails, save the raw response as a regular message

@@ -19,6 +19,7 @@ export default defineSchema({
     decisionId: v.id("decisions"),
     sender: v.union(v.literal("user"), v.literal("ai")),
     content: v.string(),
+    suggestions: v.optional(v.array(v.string())),
   }).index("by_decisionId", ["decisionId"]),
 
   decision_context: defineTable({

@@ -21,32 +21,40 @@ export default function Chat() {
   const addMessage = useMutation(api.messages.addMessage);
   const getAiResponse = useAction(api.ai.getAiResponse);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (content.trim()) {
+  const handleSendMessage = async (messageContent: string) => {
+    if (messageContent.trim()) {
       try {
         await addMessage({
           decisionId,
-          content,
+          content: messageContent,
           sender: "user",
         });
 
         await getAiResponse({
           decisionId,
         });
-
-        setContent("");
       } catch (error) {
-        console.error("Error submitting message:", error);
+        console.error("Error sending message:", error);
       }
     }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await handleSendMessage(content);
+    setContent("");
   };
 
   return (
     <div className="flex flex-col h-full w-full max-w-2xl mx-auto">
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages?.map((message) => (
-          <Message key={message._id} message={message} decisionId={decisionId} />
+          <Message
+            key={message._id}
+            message={message}
+            decisionId={decisionId}
+            onSuggestionClick={handleSendMessage}
+          />
         ))}
       </div>
       <form onSubmit={handleSubmit} className="flex items-center gap-2 p-4">

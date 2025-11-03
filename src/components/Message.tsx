@@ -3,26 +3,21 @@
 import { Doc } from "../../convex/_generated/dataModel";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
 import { Button } from "./ui/button";
 
 export default function Message({
   message,
   decisionId,
+  onSuggestionClick,
 }: {
   message: Doc<"decision_messages">;
   decisionId: string;
+  onSuggestionClick: (content: string) => void;
 }) {
   const isUser = message.sender === "user";
-  const addMessage = useMutation(api.messages.addMessage);
 
   const handleSuggestionClick = (suggestion: string) => {
-    addMessage({
-      decisionId: decisionId,
-      content: suggestion,
-      sender: "user",
-    });
+    onSuggestionClick(suggestion);
   };
 
   return (

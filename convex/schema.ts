@@ -10,7 +10,11 @@ export default defineSchema({
   decisions: defineTable({
     userId: v.id("users"),
     title: v.string(),
-    status: v.union(v.literal("in-progress"), v.literal("completed")),
+    status: v.union(
+      v.literal("in-progress"),
+      v.literal("completed"),
+      v.literal("gathering-context")
+    ),
     finalChoice: v.optional(v.string()),
     confidenceScore: v.optional(v.float64()),
   }).index("by_userId", ["userId"]),
@@ -41,6 +45,8 @@ export default defineSchema({
     reasoning: v.string(),
     finalChoice: v.string(),
     confidenceScore: v.float64(),
-    modelUsed: v.optional(v.union(v.literal("deepseek-v3.1"), v.literal("qwen3"))),
+    modelUsed: v.optional(
+      v.union(v.literal("deepseek-v3.1"), v.literal("qwen3"))
+    ),
   }).index("by_decisionId", ["decisionId"]),
 });

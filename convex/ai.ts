@@ -77,82 +77,97 @@ Never give a TED talk; give bold advice. Start by asking questions and only prov
             });
         }
 
-        try {
-            // 4. Make the API call to the Huawei Cloud model.
-            const response = await fetch(HUAWEI_API_URL, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${apiKey}`,
-                },
-                body: JSON.stringify({
-                    model: MODEL_NAME,
-                    messages: apiMessages,
-                    max_tokens: 2048,
-                    temperature: 0.7, // A bit of creativity
-                    top_p: 0.9,
-                }),
-            });
+        const MAX_RETRIES = 3;
+        const RETRY_DELAY_MS = 1000; // 1 second
 
-            if (!response.ok) {
-                const errorBody = await response.text();
-                throw new Error(`API request failed with status ${response.status}: ${errorBody}`);
-            }
-
-            const responseData = await response.json();
-            const aiResponse = responseData.choices[0].message.content;
-
+        for (let i = 0; i < MAX_RETRIES; i++) {
             try {
-                const parsedResponse = JSON.parse(aiResponse);
-
-                // Case 1: AI is asking a clarifying question
-                if (parsedResponse.question && parsedResponse.suggestions) {
-                    await ctx.runMutation(api.messages.addMessage, {
-                        decisionId: args.decisionId,
-                        content: parsedResponse.question,
-                        sender: "ai",
-                        suggestions: parsedResponse.suggestions,
-                    });
-                }
-                // Case 2: AI is providing a final decision
-                else if (parsedResponse.decision && parsedResponse.criteria && parsedResponse.options) {
-                    // If the AI returns a structured decision, save it to decision_context
-                    await ctx.runMutation(api.decision_context.addDecisionContext, {
-                        decisionId: args.decisionId,
-                        criteria: parsedResponse.criteria,
-                        options: parsedResponse.options,
-                        finalChoice: parsedResponse.decision.finalChoice,
-                        confidenceScore: parsedResponse.decision.confidenceScore,
-                        reasoning: parsedResponse.decision.reasoning,
-                        modelUsed: MODEL_NAME,
-                    });
-                    // Also save the reasoning as a regular message for chat history
-                    await ctx.runMutation(api.messages.addMessage, {
-                        decisionId: args.decisionId,
-                        content: parsedResponse.decision.reasoning.trim(),
-                        sender: "ai",
-                    });
-                } else {
-                    // Fallback for unexpected JSON structure
-                    throw new Error("Unexpected JSON structure from AI.");
-                }
-            } catch (jsonError) {
-                // If JSON parsing fails, save the raw response as a regular message
-                await ctx.runMutation(api.messages.addMessage, {
-                    decisionId: args.decisionId,
-                    content: aiResponse.trim(),
-                    sender: "ai",
+                const response = await fetch(HUAWEI_API_URL, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${apiKey}`,
+                    },
+                    body: JSON.stringify({
+                        model: MODEL_NAME,
+                        messages: apiMessages,
+                        max_tokens: 2048,
+                        temperature: 0.7,
+                        top_p: 0.9,
+                    }),
                 });
-            }
 
-        } catch (error) {
-            console.error("Error calling AI model:", error);
-            // Save a user-friendly error message if the API call fails.
-            await ctx.runMutation(api.messages.addMessage, {
-                decisionId: args.decisionId,
-                content: "Sorry, I ran into a problem and couldn't respond. Please check the Convex function logs for more details.",
-                sender: "ai",
-            });
+                if (!response.ok) {
+                    const errorBody = await response.text();
+                    // Check for the specific sensitive information error
+                    if (response.status === 403 && errorBody.includes("May contain sensitive information")) {
+                        console.warn(`AI model returned sensitive content error, retrying... (Attempt ${i + 1}/${MAX_RETRIES})`);
+                        if (i < MAX_RETRIES - 1) {
+                            await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+                            continue; // Retry the request
+                        }
+                    }
+                    throw new Error(`API request failed with status ${response.status}: ${errorBody}`);
+                }
+
+                const responseData = await response.json();
+                const aiResponse = responseData.choices[0].message.content;
+
+                try {
+                    const parsedResponse = JSON.parse(aiResponse);
+
+                    // Case 1: AI is asking a clarifying question
+                    if (parsedResponse.question && parsedResponse.suggestions) {
+                        await ctx.runMutation(api.messages.addMessage, {
+                            decisionId: args.decisionId,
+                            content: parsedResponse.question,
+                            sender: "ai",
+                            suggestions: parsedResponse.suggestions,
+                        });
+                    }
+                    // Case 2: AI is providing a final decision
+                    else if (parsedResponse.decision && parsedResponse.criteria && parsedResponse.options) {
+                        // If the AI returns a structured decision, save it to decision_context
+                        await ctx.runMutation(api.decision_context.addDecisionContext, {
+                            decisionId: args.decisionId,
+                            criteria: parsedResponse.criteria,
+                            options: parsedResponse.options,
+                            finalChoice: parsedResponse.decision.finalChoice,
+                            confidenceScore: parsedResponse.decision.confidenceScore,
+                            reasoning: parsedResponse.decision.reasoning,
+                            modelUsed: MODEL_NAME,
+                        });
+                        // Also save the reasoning as a regular message for chat history
+                        await ctx.runMutation(api.messages.addMessage, {
+                            decisionId: args.decisionId,
+                            content: parsedResponse.decision.reasoning.trim(),
+                            sender: "ai",
+                        });
+                    } else {
+                        // Fallback for unexpected JSON structure
+                        throw new Error("Unexpected JSON structure from AI.");
+                    }
+                } catch (jsonError) {
+                    // If JSON parsing fails, save the raw response as a regular message
+                    await ctx.runMutation(api.messages.addMessage, {
+                        decisionId: args.decisionId,
+                        content: aiResponse.trim(),
+                        sender: "ai",
+                    });
+                }
+                return; // Exit the retry loop on success
+
+            } catch (error) {
+                console.error("Error calling AI model:", error);
+                // If it's the last retry attempt or a non-retryable error, save a user-friendly error message.
+                if (i === MAX_RETRIES - 1 || !String(error).includes("May contain sensitive information")) {
+                    await ctx.runMutation(api.messages.addMessage, {
+                        decisionId: args.decisionId,
+                        content: "Sorry, I ran into a problem and couldn't respond. Please check the Convex function logs for more details.",
+                        sender: "ai",
+                    });
+                }
+            }
         }
     },
 });

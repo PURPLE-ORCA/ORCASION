@@ -73,35 +73,53 @@ export const updateDecisionTitle = mutation({
   },
 });
 
-export const startDecision = mutation({
-  args: {},
-  handler: async (ctx) => {
+
+
+export const deleteDecision = mutation({
+  args: {
+    decisionId: v.id("decisions"),
+  },
+  handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
-      throw new Error("Called startDecision without authentication present");
+      throw new Error("Not authenticated");
     }
 
-    // Find user or create a new one
-    let user = await ctx.db
+    const decision = await ctx.db.get(args.decisionId);
+    if (!decision) {
+      throw new Error("Decision not found");
+    }
+
+    const user = await ctx.db
       .query("users")
       .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
       .unique();
 
-    if (user === null) {
-      const userId = await ctx.db.insert("users", {
-        clerkId: identity.subject,
-        name: identity.name!,
-      });
-      user = (await ctx.db.get(userId))!;
+    if (!user || decision.userId !== user._id) {
+      throw new Error("You are not authorized to delete this decision");
     }
 
-    // Create a new decision for the user
-    const decisionId = await ctx.db.insert("decisions", {
-      userId: user._id,
-      title: "Untitled Decision",
-      status: "in-progress",
-    });
+    // Delete associated messages
+    const messages = await ctx.db
+      .query("decision_messages")
+      .withIndex("by_decisionId", (q) => q.eq("decisionId", args.decisionId))
+      .collect();
+    for (const message of messages) {
+      await ctx.db.delete(message._id);
+    }
 
-    return decisionId;
+    // Delete associated context
+    const context = await ctx.db
+      .query("decision_context")
+      .withIndex("by_decisionId", (q) => q.eq("decisionId", args.decisionId))
+      .unique();
+    if (context) {
+      await ctx.db.delete(context._id);
+    }
+
+    // Delete the decision
+    await ctx.db.delete(args.decisionId);
+
+    return { success: true };
   },
 });

@@ -145,7 +145,7 @@ const DecisionReport: React.FC<DecisionReportProps> = ({ decisionId, onClose }) 
           </CardContent>
         </Card>
 
-        <Card className="">
+        {/* <Card className="">
           <CardHeader>
             <CardTitle className="text-xl">Your Criteria</CardTitle>
           </CardHeader>
@@ -173,7 +173,7 @@ const DecisionReport: React.FC<DecisionReportProps> = ({ decisionId, onClose }) 
               Recalculate Decision
             </Button>
           </CardContent>
-        </Card>
+        </Card> */}
       </CardContent>
     </Card>
   );

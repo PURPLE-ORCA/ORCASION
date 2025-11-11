@@ -87,11 +87,6 @@ const DecisionReport: React.FC<DecisionReportProps> = ({ decisionId, onClose }) 
       </CardHeader>
       <CardContent className="space-y-6">
         <Card className="">
-          <CardHeader>
-            <CardTitle className="text-xl text-green-400">
-              Final Recommendation
-            </CardTitle>
-          </CardHeader>
           <CardContent className="text-lg">
             <p className="text-2xl font-bold">{finalChoice}</p>
             <p className="mt-2">

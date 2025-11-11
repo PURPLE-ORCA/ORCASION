@@ -8,6 +8,11 @@ import { Id } from "../../convex/_generated/dataModel";
 import AnimatedInput from "./ui/AnimatedInput";
 import { Button } from "./ui/button";
 import { useParams } from "next/navigation";
+import {
+  Reasoning,
+  ReasoningContent,
+  ReasoningTrigger,
+} from "@/components/ui/reasoning";
 
 export default function Chat() {
   const params = useParams();
@@ -18,12 +23,14 @@ export default function Chat() {
     decisionId ? { decisionId } : "skip"
   );
   const [content, setContent] = useState("");
+  const [isAiThinking, setIsAiThinking] = useState(false);
   const addMessage = useMutation(api.messages.addMessage);
   const getAiResponse = useAction(api.ai.getAiResponse);
   const summarizeDecisionTitle = useAction(api.ai.summarizeDecisionTitle);
 
   const handleSendMessage = async (messageContent: string) => {
     if (messageContent.trim()) {
+      setIsAiThinking(true);
       try {
         // Check the number of user messages *before* adding the new one.
         const userMessages = messages?.filter((m) => m.sender === "user") || [];
@@ -47,6 +54,8 @@ export default function Chat() {
         }
       } catch (error) {
         console.error("Error sending message:", error);
+      } finally {
+        setIsAiThinking(false);
       }
     }
   };
@@ -70,6 +79,13 @@ export default function Chat() {
         ))}
       </div>
       <div className="p-4">
+        {isAiThinking && (
+          <div className="mb-4">
+            <Reasoning isStreaming={true}>
+              <ReasoningTrigger />
+            </Reasoning>
+          </div>
+        )}
         <form onSubmit={handleSubmit} className="flex items-center gap-2">
           <AnimatedInput
             value={content}

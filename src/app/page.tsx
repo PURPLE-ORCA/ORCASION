@@ -11,17 +11,17 @@ import { Button } from "@/components/ui/button";
 export default function Home() {
   const { isAuthenticated, isLoading: isAuthLoading } = useConvexAuth();
   const router = useRouter();
-  const startDecision = useMutation(api.decisions.startDecision);
+  const createDecision = useMutation(api.decisions.createDecision);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleStartDecision = async () => {
+  const handleCreateDecision = async () => {
     if (!isAuthenticated) return;
     setIsLoading(true);
     try {
-      const decisionId = await startDecision();
+      const decisionId = await createDecision({ title: "New Decision" });
       router.push(`/decision/${decisionId}`);
     } catch (error) {
-      console.error("Failed to start a new decision:", error);
+      console.error("Failed to create a new decision:", error);
       setIsLoading(false);
     }
   };
@@ -43,7 +43,7 @@ export default function Home() {
         Your personal AI assistant to help you make better decisions.
       </p>
       {isAuthenticated ? (
-        <Button onClick={handleStartDecision} disabled={isLoading}>
+        <Button onClick={handleCreateDecision} disabled={isLoading}>
           {isLoading ? "Creating..." : "Start New Decision"}
         </Button>
       ) : (

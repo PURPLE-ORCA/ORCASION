@@ -20,10 +20,15 @@ export default function Chat() {
   const [content, setContent] = useState("");
   const addMessage = useMutation(api.messages.addMessage);
   const getAiResponse = useAction(api.ai.getAiResponse);
+  const summarizeDecisionTitle = useAction(api.ai.summarizeDecisionTitle);
 
   const handleSendMessage = async (messageContent: string) => {
     if (messageContent.trim()) {
       try {
+        // Check the number of user messages *before* adding the new one.
+        const userMessages = messages?.filter((m) => m.sender === "user") || [];
+        const isAboutToSendSecondUserMessage = userMessages.length === 1;
+
         await addMessage({
           decisionId,
           content: messageContent,
@@ -33,6 +38,13 @@ export default function Chat() {
         await getAiResponse({
           decisionId,
         });
+
+        // If the user is about to send their second message, trigger title summarization.
+        if (isAboutToSendSecondUserMessage) {
+          await summarizeDecisionTitle({
+            decisionId,
+          });
+        }
       } catch (error) {
         console.error("Error sending message:", error);
       }
@@ -46,8 +58,8 @@ export default function Chat() {
   };
 
   return (
-    <div className="flex flex-col h-full w-full max-w-2xl mx-auto">
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+    <div className="flex flex-col h-screen w-full max-w-4xl mx-auto">
+      <div className="flex-1 overflow-y-auto p-6 space-y-6">
         {messages?.map((message) => (
           <Message
             key={message._id}
@@ -57,15 +69,17 @@ export default function Chat() {
           />
         ))}
       </div>
-      <form onSubmit={handleSubmit} className="flex items-center gap-2 p-4">
-        <AnimatedInput
-          value={content}
-          onChange={(value) => setContent(value)}
-          label="Your message"
-          className="flex-1"
-        />
-        <Button type="submit">Send</Button>
-      </form>
+      <div className="p-4">
+        <form onSubmit={handleSubmit} className="flex items-center gap-2">
+          <AnimatedInput
+            value={content}
+            onChange={(value) => setContent(value)}
+            label="Your message"
+            className="flex-1"
+          />
+          <Button type="submit">Send</Button>
+        </form>
+      </div>
     </div>
   );
 }

@@ -16,12 +16,14 @@ import {
 } from "@/components/ui/table";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
+import { X, Copy } from "lucide-react";
 
 interface DecisionReportProps {
   decisionId: Id<"decisions">;
+  onClose: () => void;
 }
 
-const DecisionReport: React.FC<DecisionReportProps> = ({ decisionId }) => {
+const DecisionReport: React.FC<DecisionReportProps> = ({ decisionId, onClose }) => {
   const decisionContext = useQuery(api.decision_context.getDecisionContext, {
     decisionId,
   });
@@ -61,12 +63,27 @@ const DecisionReport: React.FC<DecisionReportProps> = ({ decisionId }) => {
     });
   };
 
+  const handleCopy = () => {
+    if (finalChoice) {
+      navigator.clipboard.writeText(finalChoice);
+      // Add a toast notification here for better UX
+    }
+  };
+
   return (
-    <Card className="mt-8 w-full max-w-3xl mx-auto bg-gray-800 border-gray-700 text-white">
-      <CardHeader>
+    <Card className="mt-8 w-full max-w-3xl mx-auto bg-gray-800 border-gray-700 text-white h-full overflow-y-auto">
+      <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="text-3xl font-bold text-center text-purple-400">
           Decision Report
         </CardTitle>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" onClick={handleCopy}>
+            <Copy className="h-5 w-5" />
+          </Button>
+          <Button variant="ghost" size="icon" onClick={onClose}>
+            <X className="h-5 w-5" />
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="space-y-6">
         <Card className="bg-gray-700 border-gray-600">

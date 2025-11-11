@@ -185,6 +185,77 @@ Your primary directive is to avoid premature conclusions. Never give a TED talk;
     },
 });
 
+export const summarizeDecisionTitle = action({
+    args: {
+        decisionId: v.id("decisions"),
+    },
+    handler: async (ctx, args) => {
+        const apiKey = process.env.HUAWEI_API_KEY;
+
+        if (!apiKey) {
+            console.error("HUAWEI_API_KEY is not set. Cannot summarize decision title.");
+            return;
+        }
+
+        const messages = await ctx.runQuery(api.messages.listMessages, {
+            decisionId: args.decisionId,
+        });
+
+        if (!messages || messages.length < 2) {
+            return; // Not enough messages to summarize yet
+        }
+
+        // Take the first user message and the first AI response for context
+        const relevantMessages = messages.slice(0, 2).map(({ content, sender }) => ({
+            role: sender === "ai" ? "assistant" : "user",
+            content: content,
+        }));
+
+        const systemPrompt = `You are a helpful assistant. Summarize the following conversation into a concise title, 5 words or less. Output only the title string, no other text or punctuation.`;
+
+        relevantMessages.unshift({
+            role: "system",
+            content: systemPrompt,
+        });
+
+        try {
+            const response = await fetch(HUAWEI_API_URL, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${apiKey}`,
+                },
+                body: JSON.stringify({
+                    model: MODEL_NAME,
+                    messages: relevantMessages,
+                    max_tokens: 20,
+                    temperature: 0.5,
+                }),
+            });
+
+            if (!response.ok) {
+                const errorBody = await response.text();
+                throw new Error(`API request failed with status ${response.status}: ${errorBody}`);
+            }
+
+            const responseData = await response.json();
+            const aiResponse = responseData.choices[0].message.content;
+
+            const newTitle = aiResponse.replace(/["`]/g, '').trim(); // Clean up potential quotes
+
+            if (newTitle) {
+                await ctx.runMutation(api.decisions.updateDecisionTitle, {
+                    decisionId: args.decisionId,
+                    title: newTitle,
+                });
+            }
+
+        } catch (error) {
+            console.error("Error summarizing decision title:", error);
+        }
+    },
+});
+
 export const recalculateDecision = action({
     args: {
         decisionId: v.id("decisions"),

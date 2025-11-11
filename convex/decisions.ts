@@ -63,6 +63,16 @@ export const getDecisions = query({
   },
 });
 
+export const updateDecisionTitle = mutation({
+  args: {
+    decisionId: v.id("decisions"),
+    title: v.string(),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.decisionId, { title: args.title });
+  },
+});
+
 export const startDecision = mutation({
   args: {},
   handler: async (ctx) => {

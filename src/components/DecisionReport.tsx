@@ -71,7 +71,7 @@ const DecisionReport: React.FC<DecisionReportProps> = ({ decisionId, onClose }) 
   };
 
   return (
-    <Card className="bg-red-600 w-full max-w-3xl mx-auto border-gray-700 text-white h-full overflow-y-auto hide-scrollbar">
+    <Card className="bg-transparent w-full max-w-3xl mx-auto border-none text-white h-full overflow-y-auto hide-scrollbar">
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="text-3xl font-bold text-center text-purple-400">
           Decision Report
@@ -102,32 +102,6 @@ const DecisionReport: React.FC<DecisionReportProps> = ({ decisionId, onClose }) 
             <p>
               <span className="font-semibold">Reasoning:</span> {reasoning}
             </p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gray-700 border-gray-600">
-          <CardHeader>
-            <CardTitle className="text-xl">Your Criteria</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {localCriteria.map((criterion, index) => (
-                <div key={index} className="flex items-center gap-4">
-                  <span className="w-32">{criterion.name}</span>
-                  <Slider
-                    defaultValue={[criterion.weight]}
-                    max={10}
-                    step={0.1}
-                    onValueChange={(newWeight) => handleWeightChange(index, newWeight)}
-                    className="flex-1"
-                  />
-                  <span className="w-10 text-right">{criterion.weight.toFixed(1)}</span>
-                </div>
-              ))}
-            </div>
-            <Button onClick={handleRecalculate} className="mt-6 w-full">
-              Recalculate Decision
-            </Button>
           </CardContent>
         </Card>
 
@@ -168,6 +142,36 @@ const DecisionReport: React.FC<DecisionReportProps> = ({ decisionId, onClose }) 
                 ))}
               </TableBody>
             </Table>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gray-700 border-gray-600">
+          <CardHeader>
+            <CardTitle className="text-xl">Your Criteria</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {localCriteria.map((criterion, index) => (
+                <div key={index} className="flex items-center gap-4">
+                  <span className="w-32">{criterion.name}</span>
+                  <Slider
+                    defaultValue={[criterion.weight]}
+                    max={10}
+                    step={0.1}
+                    onValueChange={(newWeight) =>
+                      handleWeightChange(index, newWeight)
+                    }
+                    className="flex-1"
+                  />
+                  <span className="w-10 text-right">
+                    {criterion.weight.toFixed(1)}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <Button onClick={handleRecalculate} className="mt-6 w-full">
+              Recalculate Decision
+            </Button>
           </CardContent>
         </Card>
       </CardContent>

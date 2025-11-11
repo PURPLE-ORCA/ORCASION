@@ -191,9 +191,8 @@ export const summarizeDecisionTitle = action({
     },
     handler: async (ctx, args) => {
         const apiKey = process.env.HUAWEI_API_KEY;
-
         if (!apiKey) {
-            console.error("HUAWEI_API_KEY is not set. Cannot summarize decision title.");
+            console.error("HUAWEI_API_KEY is not set. Cannot summarize title.");
             return;
         }
 
@@ -201,22 +200,38 @@ export const summarizeDecisionTitle = action({
             decisionId: args.decisionId,
         });
 
-        if (!messages || messages.length < 2) {
-            return; // Not enough messages to summarize yet
+        const firstUserMessage = messages?.find((m) => m.sender === "user");
+
+        if (!firstUserMessage) {
+            return; // No user message to summarize
         }
 
-        // Take the first user message and the first AI response for context
-        const relevantMessages = messages.slice(0, 2).map(({ content, sender }) => ({
-            role: sender === "ai" ? "assistant" : "user",
-            content: content,
-        }));
+        const systemPrompt = `You are a title generation assistant. Your task is to create a concise, descriptive title from the user's message.
 
-        const systemPrompt = `You are a helpful assistant. Summarize the following conversation into a concise title, 5 words or less. Output only the title string, no other text or punctuation.`;
+Follow these rules strictly:
+1.  The title must be 5 words or less.
+2.  The output must be a single, clean string.
+3.  Do NOT use markdown, code, or any special formatting.
+4.  Do NOT use quotation marks.
+5.  Do NOT repeat the user's prompt.
+6.  The title should capture the core topic of the message.
 
-        relevantMessages.unshift({
-            role: "system",
-            content: systemPrompt,
-        });
+Example:
+User message: "I want to buy a new laptop, but I'm not sure which one to get. I need something for programming and a bit of gaming."
+Correct Output: Laptop for Programming and Gaming
+
+Now, generate a title for the following user message:`;
+
+        const apiMessages = [
+            {
+                role: "system",
+                content: systemPrompt,
+            },
+            {
+                role: "user",
+                content: firstUserMessage.content,
+            },
+        ];
 
         try {
             const response = await fetch(HUAWEI_API_URL, {
@@ -227,9 +242,9 @@ export const summarizeDecisionTitle = action({
                 },
                 body: JSON.stringify({
                     model: MODEL_NAME,
-                    messages: relevantMessages,
+                    messages: apiMessages,
                     max_tokens: 20,
-                    temperature: 0.5,
+                    temperature: 0.6,
                 }),
             });
 
@@ -239,9 +254,7 @@ export const summarizeDecisionTitle = action({
             }
 
             const responseData = await response.json();
-            const aiResponse = responseData.choices[0].message.content;
-
-            const newTitle = aiResponse.replace(/["`]/g, '').trim(); // Clean up potential quotes
+            const newTitle = responseData.choices[0].message.content.trim();
 
             if (newTitle) {
                 await ctx.runMutation(api.decisions.updateDecisionTitle, {
@@ -249,7 +262,6 @@ export const summarizeDecisionTitle = action({
                     title: newTitle,
                 });
             }
-
         } catch (error) {
             console.error("Error summarizing decision title:", error);
         }

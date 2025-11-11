@@ -86,7 +86,7 @@ const DecisionReport: React.FC<DecisionReportProps> = ({ decisionId, onClose }) 
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
-        <Card className="bg-gray-700 border-gray-600">
+        <Card className="">
           <CardHeader>
             <CardTitle className="text-xl text-green-400">
               Final Recommendation
@@ -105,7 +105,7 @@ const DecisionReport: React.FC<DecisionReportProps> = ({ decisionId, onClose }) 
           </CardContent>
         </Card>
 
-        <Card className="bg-gray-700 border-gray-600">
+        <Card className="">
           <CardHeader>
             <CardTitle className="text-xl">Options Analysis</CardTitle>
           </CardHeader>
@@ -145,7 +145,7 @@ const DecisionReport: React.FC<DecisionReportProps> = ({ decisionId, onClose }) 
           </CardContent>
         </Card>
 
-        <Card className="bg-gray-700 border-gray-600">
+        <Card className="">
           <CardHeader>
             <CardTitle className="text-xl">Your Criteria</CardTitle>
           </CardHeader>

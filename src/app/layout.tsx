@@ -1,9 +1,9 @@
 import ConvexClientProvider from "./ConvexClientProvider";
-import { ClerkProvider, UserButton } from "@clerk/nextjs";
+import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { DecisionHistory } from "@/components/DecisionHistory";
+import { MainSidebar } from "@/components/MainSidebar";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -33,12 +33,9 @@ export default function RootLayout({
         <body
           className={`${geistSans.variable} ${geistMono.variable} antialiased bg-linear-to-br from-[#0a0a0a] via-[#1a001a] to-[#0a0a0a] text-white h-screen overflow-hidden `}
         >
-          <header className="fixed top-4 right-4 z-10">
-            <UserButton afterSignOutUrl="/" />
-          </header>
           <ConvexClientProvider>
             <div className="flex h-full">
-              <DecisionHistory />
+              <MainSidebar />
               <main className="flex-1 overflow-y-auto">{children}</main>
             </div>
           </ConvexClientProvider>

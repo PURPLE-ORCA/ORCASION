@@ -58,8 +58,8 @@ export default function Chat() {
   };
 
   return (
-    <div className="flex flex-col h-screen w-full max-w-4xl mx-auto">
-      <div className="flex-1 overflow-y-auto p-6 space-y-6">
+    <div className="flex flex-col h-full w-full max-w-4xl mx-auto">
+      <div className="flex-1 overflow-y-auto p-6 space-y-6 hide-scrollbar">
         {messages?.map((message) => (
           <Message
             key={message._id}

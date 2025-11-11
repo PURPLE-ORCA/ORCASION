@@ -38,12 +38,12 @@ export default function DecisionPage() {
   }
 
   return (
-    <main className="flex bg-red-600h h-full w-full">
-      <div className={`flex-1 flex flex-col ${showReport ? 'w-1/2' : 'w-full'}`}>
+    <main className="flex h-screen w-full">
+      <div className={`transition-all duration-300 ease-in-out ${showReport ? 'w-1/2' : 'w-full'}`}>
         <Chat />
       </div>
       {showReport && (
-        <div className="w-1/2 flex flex-col">
+        <div className="w-1/2 border-l border-gray-700">
           <DecisionReport decisionId={decisionId} onClose={() => setShowReport(false)} />
         </div>
       )}

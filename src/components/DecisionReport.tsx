@@ -71,7 +71,7 @@ const DecisionReport: React.FC<DecisionReportProps> = ({ decisionId, onClose }) 
   };
 
   return (
-    <Card className="mt-8 w-full max-w-3xl mx-auto bg-gray-800 border-gray-700 text-white h-full overflow-y-auto">
+    <Card className="bg-red-600 w-full max-w-3xl mx-auto border-gray-700 text-white h-full overflow-y-auto hide-scrollbar">
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="text-3xl font-bold text-center text-purple-400">
           Decision Report

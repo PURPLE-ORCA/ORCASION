@@ -31,7 +31,7 @@ export default function RootLayout({
     >
       <html lang="en" className="dark">
         <body
-          className={`${geistSans.variable} ${geistMono.variable} antialiased bg-linear-to-br from-[#0a0a0a] via-[#1a001a] to-[#0a0a0a] text-white h-screen overflow-hidden`}
+          className={`${geistSans.variable} ${geistMono.variable} antialiased bg-linear-to-br from-[#0a0a0a] via-[#1a001a] to-[#0a0a0a] text-white h-screen overflow-hidden `}
         >
           <header className="fixed top-4 right-4 z-10">
             <UserButton afterSignOutUrl="/" />
@@ -39,7 +39,7 @@ export default function RootLayout({
           <ConvexClientProvider>
             <div className="flex h-full">
               <DecisionHistory />
-              <main className="flex-1 p-8 overflow-y-auto">{children}</main>
+              <main className="flex-1 overflow-y-auto">{children}</main>
             </div>
           </ConvexClientProvider>
         </body>

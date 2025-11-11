@@ -110,7 +110,7 @@ const DecisionReport: React.FC<DecisionReportProps> = ({ decisionId, onClose }) 
             <CardTitle className="text-xl">Options Analysis</CardTitle>
           </CardHeader>
           <CardContent>
-            <Table>
+            <Table className="overflow-x-hidden">
               <TableHeader>
                 <TableRow className="border-gray-600">
                   <TableHead className="text-white">Option</TableHead>

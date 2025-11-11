@@ -1,7 +1,6 @@
 "use client";
 
 import React from "react";
-import { DecisionHistory } from "./DecisionHistory";
 import { Sidebar, SidebarBody, SidebarLink } from "./ui/sidebar";
 import { IconArrowBigLeftLine, IconSettings } from "@tabler/icons-react";
 import { motion } from "framer-motion";
@@ -19,7 +18,7 @@ export function MainSidebar() {
     {
       label: "Settings",
       href: "/settings",
-      icon: <IconSettings className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />,
+      icon: <IconSettings className="text-neutral-700 dark:text-neutral-200 h-5 w-5 shrink-0" />,
     },
   ];
   return (
@@ -46,7 +45,6 @@ export function MainSidebar() {
               Orcasion
             </motion.span>
           </Link>
-          <DecisionHistory />
         </div>
         <div className="flex flex-col gap-2">
           {links.map((link, idx) => (

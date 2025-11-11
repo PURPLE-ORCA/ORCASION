@@ -25,7 +25,7 @@ const MainSidebarContent = () => {
   return (
       <SidebarBody className="justify-between gap-10">
         <div className="flex flex-col flex-1">
-          <div className="flex-shrink-0">
+          <div className="shrink-0">
             <Link
               href="/"
               className="flex flex-row gap-2 items-center pb-2"

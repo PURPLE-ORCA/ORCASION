@@ -7,6 +7,7 @@ import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import AppLayout from "@/components/AppLayout";
 
 export default function DecisionPage() {
   const params = useParams();
@@ -38,19 +39,30 @@ export default function DecisionPage() {
   }
 
   return (
-    <main className="flex h-screen w-full">
-      <div className={`transition-all duration-300 ease-in-out ${showReport ? 'w-1/2' : 'w-full'}`}>
-        <Chat
-          showReport={showReport}
-          setShowReport={setShowReport}
-          decisionStatus={decision?.status}
-        />
+    <AppLayout>
+      <div className="flex h-screen w-full">
+        <div
+          className={`transition-all duration-300 ease-in-out ${
+            showReport ? "w-1/2" : "w-full"
+          }`}
+        >
+          <Chat
+            showReport={showReport}
+            setShowReport={setShowReport}
+            decisionStatus={decision?.status}
+          />
+        </div>
+        <div
+          className={`transition-all duration-300 ease-in-out overflow-hidden ${
+            showReport ? "w-1/2 opacity-100" : "w-0 opacity-0"
+          }`}
+        >
+          <DecisionReport
+            decisionId={decisionId}
+            onClose={() => setShowReport(false)}
+          />
+        </div>
       </div>
-      <div
-        className={`transition-all duration-300 ease-in-out overflow-hidden ${showReport ? 'w-1/2 opacity-100' : 'w-0 opacity-0'}`}
-      >
-        <DecisionReport decisionId={decisionId} onClose={() => setShowReport(false)} />
-      </div>
-    </main>
+    </AppLayout>
   );
 }

@@ -33,12 +33,7 @@ export default function RootLayout({
         <body
           className={`${geistSans.variable} ${geistMono.variable} antialiased bg-linear-to-br from-[#0a0a0a] via-[#1a001a] to-[#0a0a0a] text-white h-screen overflow-hidden `}
         >
-          <ConvexClientProvider>
-            <div className="flex h-full">
-              <MainSidebar />
-              <main className="flex-1 overflow-y-auto">{children}</main>
-            </div>
-          </ConvexClientProvider>
+          <ConvexClientProvider>{children}</ConvexClientProvider>
         </body>
       </html>
     </ClerkProvider>

@@ -124,6 +124,12 @@ export function CustomSignUpForm() {
             <Button type="submit" className="w-full">
               Sign Up
             </Button>
+            <p className="text-center text-sm text-gray-600 dark:text-gray-400">
+              Already have an account?{" "}
+              <a href="/sign-in" className="text-purple-500 hover:underline">
+                Sign In
+              </a>
+            </p>
           </form>
         )}
         {pendingVerification && (

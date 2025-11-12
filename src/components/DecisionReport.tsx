@@ -33,14 +33,43 @@ const DecisionReport: React.FC<DecisionReportProps> = ({
     decisionContext;
 
   const handleCopy = () => {
-    if (finalChoice) {
-      navigator.clipboard.writeText(finalChoice);
-      // Consider adding a toast notification for better UX
-    }
+    if (!decisionContext) return;
+
+    const { finalChoice, confidenceScore, reasoning, options, criteria } =
+      decisionContext;
+
+    const reportParts = [
+      "DECISION BRIEFING",
+      "====================",
+      `Recommendation: ${finalChoice}`,
+      `Confidence: ${(confidenceScore * 100).toFixed(0)}%`,
+      `\nReasoning:\n${reasoning}`,
+      "\nYOUR PRIORITIES",
+      "--------------------",
+      ...criteria.map(
+        (c) => `${c.name} - ${(c.weight * 100).toFixed(0)}%`
+      ),
+      "\nOPTIONS ANALYSIS",
+      "--------------------",
+    ];
+
+    options.forEach((option) => {
+      reportParts.push(
+        `\nOption: ${option.name} (Score: ${option.score.toFixed(2)})`
+      );
+      reportParts.push("Pros:");
+      reportParts.push(...option.pros.map((pro) => `  + ${pro}`));
+      reportParts.push("Cons:");
+      reportParts.push(...option.cons.map((con) => `  - ${con}`));
+    });
+
+    const fullReportText = reportParts.join("\n");
+    navigator.clipboard.writeText(fullReportText);
+    // Consider adding a toast notification for better UX
   };
 
   return (
-    <div className="bg-gray-900/50 text-gray-200 w-full h-full overflow-y-auto hide-scrollbar p-6">
+    <div className="bg-card text-gray-200 w-full h-full overflow-y-auto hide-scrollbar p-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-purple-400">Decision Briefing</h2>

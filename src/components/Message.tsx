@@ -20,7 +20,7 @@ export default function Message({
   isLastMessage: boolean;
   showReport: boolean;
   setShowReport: (show: boolean) => void;
-  decisionStatus?: "in-progress" | "completed";
+  decisionStatus?: "in-progress" | "completed" | "gathering-context";
 }) {
   const isUser = message.sender === "user";
 

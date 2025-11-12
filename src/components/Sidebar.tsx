@@ -32,8 +32,8 @@ export function MainSidebar() {
             <Image
               src="/img/OrcasionLogo.png"
               alt="Orcasion Logo"
-              width={30}
-              height={30}
+              width={40}
+              height={40}
               className="h-8 w-8"
             />
             <motion.span

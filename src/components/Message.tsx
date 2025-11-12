@@ -38,8 +38,8 @@ export default function Message({
       <div
         className={`rounded-lg px-4 py-2 ${
           isUser
-            ? "bg-primary text-primary-foreground"
-            : "bg-muted text-muted-foreground"
+            ? "bg-primary text-black"
+            : "bg-muted text-white/90"
         }`}
       >
         {isUser ? (

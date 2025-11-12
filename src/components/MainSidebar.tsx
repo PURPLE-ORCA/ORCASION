@@ -13,7 +13,7 @@ import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import Link from "next/link";
 import Image from "next/image";
-import { UserButton } from "@clerk/nextjs";
+import { UserButton, useUser, useClerk } from "@clerk/nextjs";
 import { motion } from "framer-motion";
 import { IconDotsVertical, IconPlus, IconTrash } from "@tabler/icons-react";
 
@@ -116,12 +116,48 @@ const MainSidebarContent = () => {
             ),
           }}
         />
-        <div className="flex items-center gap-2">
-          <UserButton afterSignOutUrl="/" />
-          {open && <span className="text-sm">Account</span>}
-        </div>
+        <AccountMenu />
       </div>
     </SidebarBody>
+  );
+};
+
+const AccountMenu = () => {
+  const { user } = useUser();
+  const { signOut, openUserProfile } = useClerk();
+  const { open } = useSidebar();
+
+  if (!user) {
+    return null;
+  }
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button className="flex items-center gap-2 w-full">
+          <Image
+            src={user.imageUrl}
+            alt="User Avatar"
+            width={32}
+            height={32}
+            className="rounded-full h-8 w-8"
+          />
+          {open && (
+            <span className="text-sm font-medium truncate">
+              {user.fullName}
+            </span>
+          )}
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent className="w-56 mb-2 ml-2">
+        <DropdownMenuItem className="cursor-pointer" onClick={() => openUserProfile()}>
+          Manage Account
+        </DropdownMenuItem>
+        <DropdownMenuItem className="cursor-pointer" onClick={() => signOut({ redirectUrl: "/" })}>
+          Sign Out
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 };
 

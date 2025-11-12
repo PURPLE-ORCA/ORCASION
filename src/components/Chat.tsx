@@ -14,7 +14,15 @@ import {
   ReasoningTrigger,
 } from "@/components/ui/reasoning";
 
-export default function Chat() {
+export default function Chat({
+  showReport,
+  setShowReport,
+  decisionStatus,
+}: {
+  showReport: boolean;
+  setShowReport: (show: boolean) => void;
+  decisionStatus?: "in-progress" | "completed" | "gathering-context";
+}) {
   const params = useParams();
   const decisionId = params.decisionId as Id<"decisions">;
 
@@ -69,12 +77,16 @@ export default function Chat() {
   return (
     <div className="flex flex-col h-full w-full max-w-4xl mx-auto">
       <div className="flex-1 overflow-y-auto p-6 space-y-6 hide-scrollbar">
-        {messages?.map((message) => (
+        {messages?.map((message, index) => (
           <Message
             key={message._id}
             message={message}
             decisionId={decisionId}
             onSuggestionClick={handleSendMessage}
+            isLastMessage={index === messages.length - 1}
+            showReport={showReport}
+            setShowReport={setShowReport}
+            decisionStatus={decisionStatus}
           />
         ))}
       </div>

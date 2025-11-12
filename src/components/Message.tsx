@@ -9,10 +9,18 @@ export default function Message({
   message,
   decisionId,
   onSuggestionClick,
+  isLastMessage,
+  showReport,
+  setShowReport,
+  decisionStatus,
 }: {
   message: Doc<"decision_messages">;
   decisionId: string;
   onSuggestionClick: (content: string) => void;
+  isLastMessage: boolean;
+  showReport: boolean;
+  setShowReport: (show: boolean) => void;
+  decisionStatus?: "in-progress" | "completed";
 }) {
   const isUser = message.sender === "user";
 
@@ -20,8 +28,13 @@ export default function Message({
     onSuggestionClick(suggestion);
   };
 
+  const isFinalAiMessage =
+    !isUser && isLastMessage && decisionStatus === "completed";
+
   return (
-    <div className={`flex flex-col gap-2 ${isUser ? "items-end" : "items-start"}`}>
+    <div
+      className={`flex flex-col gap-2 ${isUser ? "items-end" : "items-start"}`}
+    >
       <div
         className={`rounded-lg px-4 py-2 ${
           isUser
@@ -49,6 +62,17 @@ export default function Message({
               {suggestion}
             </Button>
           ))}
+        </div>
+      )}
+      {isFinalAiMessage && !showReport && (
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowReport(true)}
+          >
+            See Report
+          </Button>
         </div>
       )}
     </div>

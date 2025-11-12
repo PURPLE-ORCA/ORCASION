@@ -40,13 +40,17 @@ export default function DecisionPage() {
   return (
     <main className="flex h-screen w-full">
       <div className={`transition-all duration-300 ease-in-out ${showReport ? 'w-1/2' : 'w-full'}`}>
-        <Chat />
+        <Chat
+          showReport={showReport}
+          setShowReport={setShowReport}
+          decisionStatus={decision?.status}
+        />
       </div>
-      {showReport && (
-        <div className="w-1/2 border-l border-gray-700">
-          <DecisionReport decisionId={decisionId} onClose={() => setShowReport(false)} />
-        </div>
-      )}
+      <div
+        className={`transition-all duration-300 ease-in-out overflow-hidden ${showReport ? 'w-1/2 opacity-100' : 'w-0 opacity-0'}`}
+      >
+        <DecisionReport decisionId={decisionId} onClose={() => setShowReport(false)} />
+      </div>
     </main>
   );
 }

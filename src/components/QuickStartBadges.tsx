@@ -6,9 +6,10 @@ import { allPrompts, getRandomPrompts } from "@/lib/prompts";
 
 interface QuickStartBadgesProps {
   onSelectPrompt: (prompt: string) => void;
+  className?: string;
 }
 
-export function QuickStartBadges({ onSelectPrompt }: QuickStartBadgesProps) {
+export function QuickStartBadges({ onSelectPrompt, className }: QuickStartBadgesProps) {
   const [prompts, setPrompts] = useState<string[]>([]);
 
   useEffect(() => {
@@ -16,8 +17,7 @@ export function QuickStartBadges({ onSelectPrompt }: QuickStartBadgesProps) {
   }, []);
 
   return (
-    <div className="mt-8 flex flex-wrap justify-center gap-4 max-w-2xl">
-      <p className="w-full text-lg text-gray-400 mb-2">Or, try a quick start:</p>
+    <div className={`mt-8 flex flex-wrap justify-center gap-4 max-w-2xl ${className}`}>
       {prompts.map((prompt) => (
         <MagicCard
           key={prompt}

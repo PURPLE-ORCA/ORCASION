@@ -26,7 +26,7 @@ export default function LandingPage() {
         </Link>
       </div>
       {/* Pass a dummy function to onSelectPrompt to make it decorative */}
-      <QuickStartBadges onSelectPrompt={() => {}} />
+      <QuickStartBadges className="cursor-pointer" onSelectPrompt={() => {}} />
     </div>
   );
 }

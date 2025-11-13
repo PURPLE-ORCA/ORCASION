@@ -9,31 +9,49 @@ import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import AppLayout from "@/components/AppLayout";
 
+import { ChatSkeleton } from '@/components/ChatSkeleton';
+import { DecisionReportSkeleton } from '@/components/DecisionReportSkeleton';
+
 export default function DecisionPage() {
   const params = useParams();
-  const decisionId = params.decisionId as Id<"decisions">;
+  const decisionId = params.decisionId as Id<'decisions'>;
 
   const decision = useQuery(
     api.decisions.getDecision,
-    decisionId ? { decisionId } : "skip"
+    decisionId ? { decisionId } : 'skip'
   );
   const decisionContext = useQuery(
     api.decision_context.getDecisionContext,
-    decisionId ? { decisionId } : "skip"
+    decisionId ? { decisionId } : 'skip'
   );
 
   const [showReport, setShowReport] = useState(false);
 
   useEffect(() => {
-    if (decision?.status === "completed") {
+    if (decision?.status === 'completed') {
       setShowReport(true);
     }
   }, [decision?.status]);
 
-  if (!decision) {
+  if (decision === undefined || decisionContext === undefined) {
+    return (
+      <AppLayout>
+        <div className="flex h-screen w-full">
+          <div className="w-1/2">
+            <ChatSkeleton />
+          </div>
+          <div className="w-1/2 border-l">
+            <DecisionReportSkeleton />
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (decision === null) {
     return (
       <main className="flex h-screen flex-col items-center justify-center">
-        <p>Loading decision...</p>
+        <p>Decision not found.</p>
       </main>
     );
   }

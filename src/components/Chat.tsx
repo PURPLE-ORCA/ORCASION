@@ -51,8 +51,25 @@ export default function Chat({
           sender: "user",
         });
 
+        const formattedMessages =
+          messages?.map(({ content, sender }) => ({
+            role: sender,
+            content,
+          })) || [];
+
+        // Manually add the new message to the list to avoid race conditions
+        const newFormattedMessages = [
+          ...formattedMessages,
+          { role: "user", content: messageContent },
+        ];
+
+        const userMessageCount = newFormattedMessages.filter(
+          (m) => m.role === "user"
+        ).length;
+
         await getAiResponse({
-          decisionId,
+          messages: newFormattedMessages,
+          userMessageCount: userMessageCount || 0,
         });
 
         // If the user is about to send their second message, trigger title summarization.

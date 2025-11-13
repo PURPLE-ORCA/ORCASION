@@ -109,6 +109,9 @@ Your primary directive is to avoid premature conclusions. Never give a TED talk;
                 }
 
                 const responseData = await response.json();
+                if (!responseData.choices || responseData.choices.length === 0 || !responseData.choices[0].message) {
+                    throw new Error(`AI model returned an unexpected response structure: ${JSON.stringify(responseData)}`);
+                }
                 const aiResponse = responseData.choices[0].message.content;
 
                 try {

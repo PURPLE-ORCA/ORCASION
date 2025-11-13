@@ -25,9 +25,18 @@ const DecisionReport: React.FC<DecisionReportProps> = ({
   const generateActionPlan = useAction(api.decision_context.generateActionPlan);
   const [isLoadingPlan, setIsLoadingPlan] = useState(false);
 
+  const isActionPlanReady =
+    !!decisionContext?.finalChoice && !!decisionContext?.reasoning;
+
   const handleActionPlanClick = async () => {
     if (decisionContext?.actionPlan && decisionContext.actionPlan.length > 0) {
       onSwitchToActionPlan();
+      return;
+    }
+
+    if (!isActionPlanReady) {
+      // Optionally, show a message to the user that the report is not ready
+      console.log("Decision context is not ready for generating an action plan.");
       return;
     }
 
@@ -96,6 +105,8 @@ const DecisionReport: React.FC<DecisionReportProps> = ({
   };
 
   const hasActionPlan = actionPlan && actionPlan.length > 0;
+  const isButtonDisabled =
+    isLoadingPlan || (!hasActionPlan && !isActionPlanReady);
 
   return (
     <div className="bg-card text-gray-200 w-full h-full overflow-y-auto hide-scrollbar p-6">
@@ -107,7 +118,7 @@ const DecisionReport: React.FC<DecisionReportProps> = ({
             variant="outline"
             size="sm"
             onClick={handleActionPlanClick}
-            disabled={isLoadingPlan}
+            disabled={isButtonDisabled}
           >
             {isLoadingPlan ? (
               <div className="w-4 h-4 border-2 border-purple-400 border-t-transparent rounded-full animate-spin mr-2"></div>
@@ -116,7 +127,11 @@ const DecisionReport: React.FC<DecisionReportProps> = ({
             ) : (
               <Rocket className="h-4 w-4 mr-2" />
             )}
-            {isLoadingPlan ? "Generating..." : hasActionPlan ? "View Action Plan" : "Generate Action Plan"}
+            {isLoadingPlan
+              ? "Generating..."
+              : hasActionPlan
+              ? "View Action Plan"
+              : "Generate Action Plan"}
           </Button>
           <Button variant="ghost" size="icon" onClick={handleCopy}>
             <Copy className="h-5 w-5" />

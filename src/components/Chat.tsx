@@ -67,10 +67,28 @@ export default function Chat({
           (m) => m.role === "user"
         ).length;
 
-        await getAiResponse({
+        const aiResult = await getAiResponse({
           messages: newFormattedMessages,
           userMessageCount: userMessageCount || 0,
         });
+
+        if (aiResult) {
+          // The AI can return a string or a structured object.
+          if (typeof aiResult === "object" && aiResult.question) {
+            await addMessage({
+              decisionId,
+              content: aiResult.question,
+              sender: "ai",
+              suggestions: aiResult.suggestions,
+            });
+          } else if (typeof aiResult === "string") {
+            await addMessage({
+              decisionId,
+              content: aiResult,
+              sender: "ai",
+            });
+          }
+        }
 
         // If the user is about to send their second message, trigger title summarization.
         if (isAboutToSendSecondUserMessage) {

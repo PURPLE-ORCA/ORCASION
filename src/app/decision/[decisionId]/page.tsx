@@ -28,13 +28,15 @@ export default function DecisionPage() {
     decisionId ? { decisionId } : 'skip'
   );
 
-  const [activeView, setActiveView] = useState<ActiveView>('chat');
+  const [activeView, setActiveView] = useState<ActiveView>(() =>
+    decision?.status === 'completed' ? 'report' : 'chat'
+  );
 
   useEffect(() => {
-    if (decision?.status === 'completed') {
+    if (decision?.status === 'completed' && activeView !== 'report') {
       setActiveView('report');
     }
-  }, [decision?.status]);
+  }, [decision?.status, activeView]);
 
   if (decision === undefined || decisionContext === undefined) {
     return (

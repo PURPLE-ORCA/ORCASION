@@ -63,6 +63,10 @@ export const sendChatMessage = action({
           content: decisionResponse.decision.reasoning.trim(),
           sender: "ai",
         });
+        await ctx.runMutation(api.decisions.updateDecisionStatus, {
+          decisionId: args.decisionId,
+          status: "completed",
+        });
       }
     } else if (typeof aiResponse === 'string') {
       await ctx.runMutation(api.messages.addMessage, {
@@ -143,6 +147,16 @@ export const updateDecisionTitle = mutation({
   },
   handler: async (ctx, args) => {
     await ctx.db.patch(args.decisionId, { title: args.title });
+  },
+});
+
+export const updateDecisionStatus = mutation({
+  args: {
+    decisionId: v.id("decisions"),
+    status: v.union(v.literal("in-progress"), v.literal("completed")),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.decisionId, { status: args.status });
   },
 });
 

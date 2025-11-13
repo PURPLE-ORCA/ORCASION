@@ -13,6 +13,7 @@ import {
   ReasoningContent,
   ReasoningTrigger,
 } from "@/components/ui/reasoning";
+import { ChatQuickStarts } from "./ChatQuickStarts";
 
 export default function Chat({
   showReport,
@@ -77,18 +78,22 @@ export default function Chat({
   return (
     <div className="flex flex-col h-full w-full max-w-4xl mx-auto">
       <div className="flex-1 overflow-y-auto p-6 space-y-6 hide-scrollbar">
-        {messages?.map((message, index) => (
-          <Message
-            key={message._id}
-            message={message}
-            decisionId={decisionId}
-            onSuggestionClick={handleSendMessage}
-            isLastMessage={index === messages.length - 1}
-            showReport={showReport}
-            setShowReport={setShowReport}
-            decisionStatus={decisionStatus}
-          />
-        ))}
+        {messages && messages.length > 0 ? (
+          messages.map((message, index) => (
+            <Message
+              key={message._id}
+              message={message}
+              decisionId={decisionId}
+              onSuggestionClick={handleSendMessage}
+              isLastMessage={index === messages.length - 1}
+              showReport={showReport}
+              setShowReport={setShowReport}
+              decisionStatus={decisionStatus}
+            />
+          ))
+        ) : (
+          <ChatQuickStarts onSelectPrompt={handleSendMessage} />
+        )}
       </div>
       <div className="p-4">
         {isAiThinking && (

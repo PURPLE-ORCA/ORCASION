@@ -12,7 +12,7 @@ export const getAiResponse = action({
         userMessageCount: v.number(),
     },
     handler: async (ctx, args) => {
-        console.log("1. getAiResponse action invoked.");
+        // console.log("1. getAiResponse action invoked.");
         const apiKey = process.env.HUAWEI_API_KEY;
 
         if (!apiKey) {
@@ -81,7 +81,7 @@ Your primary directive is to avoid premature conclusions. Never give a TED talk;
 
         for (let i = 0; i < MAX_RETRIES; i++) {
             try {
-                console.log("2. Preparing to fetch from Huawei API...");
+                // console.log("2. Preparing to fetch from Huawei API...");
                 const response = await fetch(HUAWEI_API_URL, {
                     method: "POST",
                     headers: {
@@ -96,7 +96,7 @@ Your primary directive is to avoid premature conclusions. Never give a TED talk;
                         top_p: 0.9,
                     }),
                 });
-                console.log("3. Received response from API.");
+                // console.log("3. Received response from API.");
 
                 if (!response.ok) {
                     const errorBody = await response.text();
@@ -116,7 +116,7 @@ Your primary directive is to avoid premature conclusions. Never give a TED talk;
                     throw new Error(`AI model returned an unexpected response structure: ${JSON.stringify(responseData)}`);
                 }
                 const aiResponse = responseData.choices[0].message.content;
-                console.log("4. Successfully parsed AI response:", aiResponse);
+                // console.log("4. Successfully parsed AI response:", aiResponse);
 
                 try {
                     const parsedResponse = JSON.parse(aiResponse);

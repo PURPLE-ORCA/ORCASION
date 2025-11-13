@@ -35,11 +35,7 @@ export default function Chat({
   const [isAiThinking, setIsAiThinking] = useState(false);
   const sendChatMessage = useAction(api.decisions.sendChatMessage);
 
-  useEffect(() => {
-    if (decisionStatus === "completed") {
-      setShowReport(true);
-    }
-  }, [decisionStatus, setShowReport]);
+
 
   const handleSendMessage = async (messageContent: string) => {
     if (messageContent.trim()) {

@@ -32,11 +32,14 @@ export default function DecisionPage() {
     decision?.status === 'completed' ? 'report' : 'chat'
   );
 
+  const [hasAutoOpenedReport, setHasAutoOpenedReport] = useState(false);
+
   useEffect(() => {
-    if (decision?.status === 'completed' && activeView !== 'report') {
+    if (decision?.status === 'completed' && !hasAutoOpenedReport) {
       setActiveView('report');
+      setHasAutoOpenedReport(true);
     }
-  }, [decision?.status, activeView]);
+  }, [decision?.status, hasAutoOpenedReport]);
 
   if (decision === undefined || decisionContext === undefined) {
     return (

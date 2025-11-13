@@ -5,17 +5,19 @@ import { useQuery, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
-import { X, CheckCircle2, XCircle, Copy, Rocket } from "lucide-react";
+import { X, CheckCircle2, XCircle, Copy, Rocket, ArrowRight } from "lucide-react";
 import { Separator } from "./ui/separator";
 
 interface DecisionReportProps {
   decisionId: Id<"decisions">;
   onClose: () => void;
+  onSwitchToActionPlan: () => void;
 }
 
 const DecisionReport: React.FC<DecisionReportProps> = ({
   decisionId,
   onClose,
+  onSwitchToActionPlan,
 }) => {
   const decisionContext = useQuery(api.decision_context.getDecisionContext, {
     decisionId,
@@ -23,10 +25,16 @@ const DecisionReport: React.FC<DecisionReportProps> = ({
   const generateActionPlan = useAction(api.decision_context.generateActionPlan);
   const [isLoadingPlan, setIsLoadingPlan] = useState(false);
 
-  const handleGeneratePlan = async () => {
+  const handleActionPlanClick = async () => {
+    if (decisionContext?.actionPlan && decisionContext.actionPlan.length > 0) {
+      onSwitchToActionPlan();
+      return;
+    }
+
     setIsLoadingPlan(true);
     try {
       await generateActionPlan({ decisionId });
+      onSwitchToActionPlan(); // Switch view after successful generation
     } catch (error) {
       console.error("Failed to generate action plan:", error);
       // Optionally, show an error to the user
@@ -87,12 +95,29 @@ const DecisionReport: React.FC<DecisionReportProps> = ({
     // Consider adding a toast notification for better UX
   };
 
+  const hasActionPlan = actionPlan && actionPlan.length > 0;
+
   return (
     <div className="bg-card text-gray-200 w-full h-full overflow-y-auto hide-scrollbar p-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-purple-400">Decision Briefing</h2>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleActionPlanClick}
+            disabled={isLoadingPlan}
+          >
+            {isLoadingPlan ? (
+              <div className="w-4 h-4 border-2 border-purple-400 border-t-transparent rounded-full animate-spin mr-2"></div>
+            ) : hasActionPlan ? (
+              <ArrowRight className="h-4 w-4 mr-2" />
+            ) : (
+              <Rocket className="h-4 w-4 mr-2" />
+            )}
+            {isLoadingPlan ? "Generating..." : hasActionPlan ? "View Action Plan" : "Generate Action Plan"}
+          </Button>
           <Button variant="ghost" size="icon" onClick={handleCopy}>
             <Copy className="h-5 w-5" />
           </Button>
@@ -120,41 +145,7 @@ const DecisionReport: React.FC<DecisionReportProps> = ({
         <p className="text-gray-300">{reasoning}</p>
       </div>
 
-      {/* Section 2: Action Plan */}
-      <div className="mb-8">
-        <h3 className="text-xl font-semibold mb-3 text-white">Your Action Plan</h3>
-        {actionPlan && actionPlan.length > 0 ? (
-          <ul className="space-y-3">
-            {actionPlan.map((step, index) => (
-              <li key={index} className="flex items-start gap-3 p-3 bg-gray-800/40 rounded-lg">
-                <div className="flex items-center justify-center h-6 w-6 bg-purple-500/20 rounded-full text-purple-300 font-bold text-sm shrink-0 mt-1">
-                  {index + 1}
-                </div>
-                <span className="text-gray-300">{step}</span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <div className="text-center p-4 bg-gray-800/40 rounded-lg">
-            {isLoadingPlan ? (
-              <div className="flex items-center justify-center">
-                <div className="w-6 h-6 border-2 border-purple-400 border-t-transparent rounded-full animate-spin mr-2"></div>
-                <span>Generating your plan...</span>
-              </div>
-            ) : (
-              <>
-                <p className="text-gray-400 mb-3">Ready to turn this decision into action?</p>
-                <Button onClick={handleGeneratePlan} disabled={isLoadingPlan}>
-                  <Rocket className="mr-2 h-4 w-4" />
-                  Generate Action Plan
-                </Button>
-              </>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Section 3: Your Priorities */}
+      {/* Section 2: Your Priorities */}
       <div className="mb-8">
         <h3 className="text-xl font-semibold mb-3 text-white">Your Priorities</h3>
         <div className="flex flex-wrap gap-2">
@@ -169,7 +160,7 @@ const DecisionReport: React.FC<DecisionReportProps> = ({
         </div>
       </div>
 
-      {/* Section 4: Options Analysis */}
+      {/* Section 3: Options Analysis */}
       <div>
         <h3 className="text-xl font-semibold mb-4 text-white">Options Analysis</h3>
         <div className="space-y-4">

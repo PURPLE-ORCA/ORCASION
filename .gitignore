@@ -43,3 +43,5 @@ next-env.d.ts
 GEMINI.md
 # clerk configuration (can include secrets)
 /.clerk/
+
+/docs/Context

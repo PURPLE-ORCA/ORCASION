@@ -196,11 +196,11 @@ export const deleteDecision = mutation({
     }
 
     // Delete associated context
-    const context = await ctx.db
+    const contexts = await ctx.db
       .query("decision_context")
       .withIndex("by_decisionId", (q) => q.eq("decisionId", args.decisionId))
-      .unique();
-    if (context) {
+      .collect();
+    for (const context of contexts) {
       await ctx.db.delete(context._id);
     }
 

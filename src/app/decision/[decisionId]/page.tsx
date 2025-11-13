@@ -6,7 +6,7 @@ import ActionPlanView from "@/components/ActionPlanView"; // To be created
 import { Id } from "../../../../convex/_generated/dataModel";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import AppLayout from "@/components/AppLayout";
 
@@ -41,6 +41,14 @@ export default function DecisionPage() {
     }
   }, [decision?.status, hasAutoOpenedReport]);
 
+  const router = useRouter();
+
+  useEffect(() => {
+    if (decision === null) {
+      router.push("/");
+    }
+  }, [decision, router]);
+
   if (decision === undefined || decisionContext === undefined) {
     return (
       <AppLayout>
@@ -58,9 +66,11 @@ export default function DecisionPage() {
 
   if (decision === null) {
     return (
-      <main className="flex h-screen flex-col items-center justify-center">
-        <p>Decision not found.</p>
-      </main>
+      <AppLayout>
+        <div className="flex h-screen w-full items-center justify-center">
+          <p>Decision not found, redirecting...</p>
+        </div>
+      </AppLayout>
     );
   }
 

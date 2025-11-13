@@ -45,6 +45,7 @@ export default defineSchema({
     reasoning: v.string(),
     finalChoice: v.string(),
     confidenceScore: v.float64(),
+    actionPlan: v.optional(v.array(v.string())),
     modelUsed: v.optional(
       v.union(v.literal("deepseek-v3.1"), v.literal("qwen3"))
     ),

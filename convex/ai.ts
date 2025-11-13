@@ -8,42 +8,27 @@ const HUAWEI_API_URL = "https://api-ap-southeast-1.modelarts-maas.com/v1/chat/co
 
 export const getAiResponse = action({
     args: {
-        decisionId: v.id("decisions"),
+        messages: v.array(v.object({ role: v.string(), content: v.string() })),
+        userMessageCount: v.number(),
     },
     handler: async (ctx, args) => {
         const apiKey = process.env.HUAWEI_API_KEY;
 
         if (!apiKey) {
-            // If the API key is not set, return a helpful error message.
-            await ctx.runMutation(api.messages.addMessage, {
-                decisionId: args.decisionId,
-                content: "The HUAWEI_API_KEY is not set. Please add it to your Convex project's environment variables.",
-                sender: "ai",
-            });
-            return;
+            throw new Error("HUAWEI_API_KEY is not set. Please add it to your Convex project's environment variables.");
         }
 
-        // 1. Get the full message history for the current decision.
-        const messages = await ctx.runQuery(api.messages.listMessages, {
-            decisionId: args.decisionId,
-        });
-
-        if (!messages) {
-            // Early return if there are no messages to process.
-            return;
-        }
+        const { messages, userMessageCount } = args;
 
         // 2. Format the messages for the Huawei Cloud API.
         // The API expects roles to be "user", "assistant", or "system".
-        const apiMessages = messages.map(({ content, sender }) => ({
-            role: sender === "ai" ? "assistant" : "user",
+        const apiMessages = messages.map(({ content, role }) => ({
+            role: role === "ai" ? "assistant" : role,
             content: content,
         }));
 
         // 3. Add a system prompt if this is the first message to guide the AI.
-        if (apiMessages.length > 0) {
-            const userMessageCount = apiMessages.filter(m => m.role === 'user').length;
-
+        if (userMessageCount > 0) {
             apiMessages.unshift({
                 role: "system",
                 content: `You are Orcasion, a decision-making assistant. Your personality is confident, witty, and a little sarcastic. Your primary goal is to help the user make a decision by guiding them through a context-gathering process.
@@ -128,60 +113,18 @@ Your primary directive is to avoid premature conclusions. Never give a TED talk;
 
                 try {
                     const parsedResponse = JSON.parse(aiResponse);
-
-                    // Case 1: AI is asking a clarifying question
-                    if (parsedResponse.question && parsedResponse.suggestions) {
-                        await ctx.runMutation(api.messages.addMessage, {
-                            decisionId: args.decisionId,
-                            content: parsedResponse.question,
-                            sender: "ai",
-                            suggestions: parsedResponse.suggestions,
-                        });
-                    }
-                    // Case 2: AI is providing a final decision
-                    else if (parsedResponse.decision && parsedResponse.criteria && parsedResponse.options) {
-                        // If the AI returns a structured decision, save it to decision_context
-                        await ctx.runMutation(api.decision_context.addDecisionContext, {
-                            decisionId: args.decisionId,
-                            criteria: parsedResponse.criteria,
-                            options: parsedResponse.options,
-                            finalChoice: parsedResponse.decision.finalChoice,
-                            confidenceScore: parsedResponse.decision.confidenceScore,
-                            reasoning: parsedResponse.decision.reasoning,
-                            modelUsed: MODEL_NAME,
-                        });
-                        // Also save the reasoning as a regular message for chat history
-                        await ctx.runMutation(api.messages.addMessage, {
-                            decisionId: args.decisionId,
-                            content: parsedResponse.decision.reasoning.trim(),
-                            sender: "ai",
-                        });
-                    } else {
-                        // Fallback for unexpected JSON structure
-                        throw new Error("Unexpected JSON structure from AI.");
-                    }
+                    return parsedResponse; // Return the parsed response directly
                 } catch (jsonError) {
-                    // If JSON parsing fails, save the raw response as a regular message
-                    await ctx.runMutation(api.messages.addMessage, {
-                        decisionId: args.decisionId,
-                        content: aiResponse.trim(),
-                        sender: "ai",
-                    });
+                    // If JSON parsing fails, return the raw response as a string
+                    return aiResponse.trim();
                 }
-                return; // Exit the retry loop on success
 
             } catch (error) {
                 console.error("Error calling AI model:", error);
-                // If it's the last retry attempt or a non-retryable error, save a user-friendly error message.
-                if (i === MAX_RETRIES - 1 || !String(error).includes("May contain sensitive information")) {
-                    await ctx.runMutation(api.messages.addMessage, {
-                        decisionId: args.decisionId,
-                        content: "Sorry, I ran into a problem and couldn't respond. Please check the Convex function logs for more details.",
-                        sender: "ai",
-                    });
-                }
+                throw error; // Re-throw the error to be handled by the caller
             }
         }
+        throw new Error("Failed to get AI response after multiple retries.");
     },
 });
 

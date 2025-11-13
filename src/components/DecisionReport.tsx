@@ -1,11 +1,11 @@
 "use client";
 
-import React from "react";
-import { useQuery } from "convex/react";
+import React, { useState } from "react";
+import { useQuery, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
-import { X, CheckCircle2, XCircle, Copy } from "lucide-react";
+import { X, CheckCircle2, XCircle, Copy, Rocket } from "lucide-react";
 import { Separator } from "./ui/separator";
 
 interface DecisionReportProps {
@@ -20,6 +20,20 @@ const DecisionReport: React.FC<DecisionReportProps> = ({
   const decisionContext = useQuery(api.decision_context.getDecisionContext, {
     decisionId,
   });
+  const generateActionPlan = useAction(api.decision_context.generateActionPlan);
+  const [isLoadingPlan, setIsLoadingPlan] = useState(false);
+
+  const handleGeneratePlan = async () => {
+    setIsLoadingPlan(true);
+    try {
+      await generateActionPlan({ decisionId });
+    } catch (error) {
+      console.error("Failed to generate action plan:", error);
+      // Optionally, show an error to the user
+    } finally {
+      setIsLoadingPlan(false);
+    }
+  };
 
   if (!decisionContext) {
     return (
@@ -29,13 +43,13 @@ const DecisionReport: React.FC<DecisionReportProps> = ({
     );
   }
 
-  const { finalChoice, confidenceScore, reasoning, options, criteria } =
+  const { finalChoice, confidenceScore, reasoning, options, criteria, actionPlan } =
     decisionContext;
 
   const handleCopy = () => {
     if (!decisionContext) return;
 
-    const { finalChoice, confidenceScore, reasoning, options, criteria } =
+    const { finalChoice, confidenceScore, reasoning, options, criteria, actionPlan } =
       decisionContext;
 
     const reportParts = [
@@ -62,6 +76,11 @@ const DecisionReport: React.FC<DecisionReportProps> = ({
       reportParts.push("Cons:");
       reportParts.push(...option.cons.map((con) => `  - ${con}`));
     });
+
+    if (actionPlan && actionPlan.length > 0) {
+        reportParts.push("\nACTION PLAN", "--------------------");
+        reportParts.push(...actionPlan.map((step, index) => `${index + 1}. ${step}`));
+    }
 
     const fullReportText = reportParts.join("\n");
     navigator.clipboard.writeText(fullReportText);
@@ -101,7 +120,41 @@ const DecisionReport: React.FC<DecisionReportProps> = ({
         <p className="text-gray-300">{reasoning}</p>
       </div>
 
-      {/* Section 2: Your Priorities */}
+      {/* Section 2: Action Plan */}
+      <div className="mb-8">
+        <h3 className="text-xl font-semibold mb-3 text-white">Your Action Plan</h3>
+        {actionPlan && actionPlan.length > 0 ? (
+          <ul className="space-y-3">
+            {actionPlan.map((step, index) => (
+              <li key={index} className="flex items-start gap-3 p-3 bg-gray-800/40 rounded-lg">
+                <div className="flex items-center justify-center h-6 w-6 bg-purple-500/20 rounded-full text-purple-300 font-bold text-sm shrink-0 mt-1">
+                  {index + 1}
+                </div>
+                <span className="text-gray-300">{step}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <div className="text-center p-4 bg-gray-800/40 rounded-lg">
+            {isLoadingPlan ? (
+              <div className="flex items-center justify-center">
+                <div className="w-6 h-6 border-2 border-purple-400 border-t-transparent rounded-full animate-spin mr-2"></div>
+                <span>Generating your plan...</span>
+              </div>
+            ) : (
+              <>
+                <p className="text-gray-400 mb-3">Ready to turn this decision into action?</p>
+                <Button onClick={handleGeneratePlan} disabled={isLoadingPlan}>
+                  <Rocket className="mr-2 h-4 w-4" />
+                  Generate Action Plan
+                </Button>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Section 3: Your Priorities */}
       <div className="mb-8">
         <h3 className="text-xl font-semibold mb-3 text-white">Your Priorities</h3>
         <div className="flex flex-wrap gap-2">
@@ -116,7 +169,7 @@ const DecisionReport: React.FC<DecisionReportProps> = ({
         </div>
       </div>
 
-      {/* Section 3: Options Analysis */}
+      {/* Section 4: Options Analysis */}
       <div>
         <h3 className="text-xl font-semibold mb-4 text-white">Options Analysis</h3>
         <div className="space-y-4">

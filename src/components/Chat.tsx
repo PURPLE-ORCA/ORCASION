@@ -3,7 +3,7 @@
 import { useAction, useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import Message from "./Message";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Id } from "../../convex/_generated/dataModel";
 import AnimatedInput from "./ui/AnimatedInput";
 import { Button } from "./ui/button";
@@ -33,71 +33,26 @@ export default function Chat({
   );
   const [content, setContent] = useState("");
   const [isAiThinking, setIsAiThinking] = useState(false);
-  const addMessage = useMutation(api.messages.addMessage);
-  const getAiResponse = useAction(api.ai.getAiResponse);
-  const summarizeDecisionTitle = useAction(api.ai.summarizeDecisionTitle);
+  const sendChatMessage = useAction(api.decisions.sendChatMessage);
+
+  useEffect(() => {
+    if (decisionStatus === "completed") {
+      setShowReport(true);
+    }
+  }, [decisionStatus, setShowReport]);
 
   const handleSendMessage = async (messageContent: string) => {
     if (messageContent.trim()) {
+      setContent(""); // Clear input immediately
       setIsAiThinking(true);
       try {
-        // Check the number of user messages *before* adding the new one.
-        const userMessages = messages?.filter((m) => m.sender === "user") || [];
-        const isAboutToSendSecondUserMessage = userMessages.length === 1;
-
-        await addMessage({
+        await sendChatMessage({
           decisionId,
           content: messageContent,
-          sender: "user",
         });
-
-        const formattedMessages =
-          messages?.map(({ content, sender }) => ({
-            role: sender,
-            content,
-          })) || [];
-
-        // Manually add the new message to the list to avoid race conditions
-        const newFormattedMessages = [
-          ...formattedMessages,
-          { role: "user", content: messageContent },
-        ];
-
-        const userMessageCount = newFormattedMessages.filter(
-          (m) => m.role === "user"
-        ).length;
-
-        const aiResult = await getAiResponse({
-          messages: newFormattedMessages,
-          userMessageCount: userMessageCount || 0,
-        });
-
-        if (aiResult) {
-          // The AI can return a string or a structured object.
-          if (typeof aiResult === "object" && aiResult.question) {
-            await addMessage({
-              decisionId,
-              content: aiResult.question,
-              sender: "ai",
-              suggestions: aiResult.suggestions,
-            });
-          } else if (typeof aiResult === "string") {
-            await addMessage({
-              decisionId,
-              content: aiResult,
-              sender: "ai",
-            });
-          }
-        }
-
-        // If the user is about to send their second message, trigger title summarization.
-        if (isAboutToSendSecondUserMessage) {
-          await summarizeDecisionTitle({
-            decisionId,
-          });
-        }
       } catch (error) {
         console.error("Error sending message:", error);
+        // Optionally, add an error message to the chat UI
       } finally {
         setIsAiThinking(false);
       }
@@ -107,7 +62,6 @@ export default function Chat({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     await handleSendMessage(content);
-    setContent("");
   };
 
   return (

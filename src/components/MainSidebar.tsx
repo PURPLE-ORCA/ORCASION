@@ -79,27 +79,29 @@ const MainSidebarContent = () => {
                       icon: null,
                     }}
                   />
-                  <DropdownMenu onOpenChange={setIsDropdownOpen}>
-                    <DropdownMenuTrigger asChild>
-                      <button
-                        className="opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <IconDotsVertical className="h-5 w-5" />
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                      <DropdownMenuItem
-                        onClick={(e) =>
-                          handleDelete(e, decision._id as Id<"decisions">)
-                        }
-                        className="text-red-500"
-                      >
-                        <IconTrash className="h-4 w-4 mr-2" />
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <DropdownMenu onOpenChange={setIsDropdownOpen}>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          className="p-1"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <IconDotsVertical className="h-5 w-5" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent>
+                        <DropdownMenuItem
+                          onClick={(e) =>
+                            handleDelete(e, decision._id as Id<"decisions">)
+                          }
+                          className="text-red-500"
+                        >
+                          <IconTrash className="h-4 w-4 mr-2" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 </div>
               ))}
             </div>

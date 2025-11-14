@@ -1,25 +1,56 @@
 "use client";
 
-import React from "react";
-import { useQuery } from "convex/react";
+import React, { useState } from "react";
+import { useQuery, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
-import { X, CheckCircle2, XCircle, Copy } from "lucide-react";
+import { X, CheckCircle2, XCircle, Copy, Rocket, ArrowRight } from "lucide-react";
 import { Separator } from "./ui/separator";
 
 interface DecisionReportProps {
   decisionId: Id<"decisions">;
   onClose: () => void;
+  onSwitchToActionPlan: () => void;
 }
 
 const DecisionReport: React.FC<DecisionReportProps> = ({
   decisionId,
   onClose,
+  onSwitchToActionPlan,
 }) => {
   const decisionContext = useQuery(api.decision_context.getDecisionContext, {
     decisionId,
   });
+  const generateActionPlan = useAction(api.decision_context.generateActionPlan);
+  const [isLoadingPlan, setIsLoadingPlan] = useState(false);
+
+  const isActionPlanReady =
+    !!decisionContext?.finalChoice && !!decisionContext?.reasoning;
+
+  const handleActionPlanClick = async () => {
+    if (decisionContext?.actionPlan && decisionContext.actionPlan.length > 0) {
+      onSwitchToActionPlan();
+      return;
+    }
+
+    if (!isActionPlanReady) {
+      // Optionally, show a message to the user that the report is not ready
+      console.log("Decision context is not ready for generating an action plan.");
+      return;
+    }
+
+    setIsLoadingPlan(true);
+    try {
+      await generateActionPlan({ decisionId });
+      onSwitchToActionPlan(); // Switch view after successful generation
+    } catch (error) {
+      console.error("Failed to generate action plan:", error);
+      // Optionally, show an error to the user
+    } finally {
+      setIsLoadingPlan(false);
+    }
+  };
 
   if (!decisionContext) {
     return (
@@ -29,13 +60,13 @@ const DecisionReport: React.FC<DecisionReportProps> = ({
     );
   }
 
-  const { finalChoice, confidenceScore, reasoning, options, criteria } =
+  const { finalChoice, confidenceScore, reasoning, options, criteria, actionPlan } =
     decisionContext;
 
   const handleCopy = () => {
     if (!decisionContext) return;
 
-    const { finalChoice, confidenceScore, reasoning, options, criteria } =
+    const { finalChoice, confidenceScore, reasoning, options, criteria, actionPlan } =
       decisionContext;
 
     const reportParts = [
@@ -63,10 +94,19 @@ const DecisionReport: React.FC<DecisionReportProps> = ({
       reportParts.push(...option.cons.map((con) => `  - ${con}`));
     });
 
+    if (actionPlan && actionPlan.length > 0) {
+        reportParts.push("\nACTION PLAN", "--------------------");
+        reportParts.push(...actionPlan.map((step, index) => `${index + 1}. ${step}`));
+    }
+
     const fullReportText = reportParts.join("\n");
     navigator.clipboard.writeText(fullReportText);
     // Consider adding a toast notification for better UX
   };
+
+  const hasActionPlan = actionPlan && actionPlan.length > 0;
+  const isButtonDisabled =
+    isLoadingPlan || (!hasActionPlan && !isActionPlanReady);
 
   return (
     <div className="bg-card text-gray-200 w-full h-full overflow-y-auto hide-scrollbar p-6">
@@ -74,6 +114,25 @@ const DecisionReport: React.FC<DecisionReportProps> = ({
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-purple-400">Decision Briefing</h2>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleActionPlanClick}
+            disabled={isButtonDisabled}
+          >
+            {isLoadingPlan ? (
+              <div className="w-4 h-4 border-2 border-purple-400 border-t-transparent rounded-full animate-spin mr-2"></div>
+            ) : hasActionPlan ? (
+              <ArrowRight className="h-4 w-4 mr-2" />
+            ) : (
+              <Rocket className="h-4 w-4 mr-2" />
+            )}
+            {isLoadingPlan
+              ? "Generating..."
+              : hasActionPlan
+              ? "View Action Plan"
+              : "Generate Action Plan"}
+          </Button>
           <Button variant="ghost" size="icon" onClick={handleCopy}>
             <Copy className="h-5 w-5" />
           </Button>

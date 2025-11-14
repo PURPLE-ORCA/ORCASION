@@ -40,7 +40,7 @@ export function MainSidebar() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="font-bold text-lg whitespace-pre"
+              className="font-bold text-lg lgitespace-pre"
             >
               Orcasion
             </motion.span>

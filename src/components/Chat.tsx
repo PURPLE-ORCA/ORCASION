@@ -3,7 +3,7 @@
 import { useAction, useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import Message from "./Message";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Id } from "../../convex/_generated/dataModel";
 import AnimatedInput from "./ui/AnimatedInput";
 import { Button } from "./ui/button";
@@ -13,6 +13,7 @@ import {
   ReasoningContent,
   ReasoningTrigger,
 } from "@/components/ui/reasoning";
+import { ChatQuickStarts } from "./ChatQuickStarts";
 
 export default function Chat({
   showReport,
@@ -32,36 +33,22 @@ export default function Chat({
   );
   const [content, setContent] = useState("");
   const [isAiThinking, setIsAiThinking] = useState(false);
-  const addMessage = useMutation(api.messages.addMessage);
-  const getAiResponse = useAction(api.ai.getAiResponse);
-  const summarizeDecisionTitle = useAction(api.ai.summarizeDecisionTitle);
+  const sendChatMessage = useAction(api.decisions.sendChatMessage);
+
+
 
   const handleSendMessage = async (messageContent: string) => {
     if (messageContent.trim()) {
+      setContent(""); // Clear input immediately
       setIsAiThinking(true);
       try {
-        // Check the number of user messages *before* adding the new one.
-        const userMessages = messages?.filter((m) => m.sender === "user") || [];
-        const isAboutToSendSecondUserMessage = userMessages.length === 1;
-
-        await addMessage({
+        await sendChatMessage({
           decisionId,
           content: messageContent,
-          sender: "user",
         });
-
-        await getAiResponse({
-          decisionId,
-        });
-
-        // If the user is about to send their second message, trigger title summarization.
-        if (isAboutToSendSecondUserMessage) {
-          await summarizeDecisionTitle({
-            decisionId,
-          });
-        }
       } catch (error) {
         console.error("Error sending message:", error);
+        // Optionally, add an error message to the chat UI
       } finally {
         setIsAiThinking(false);
       }
@@ -71,24 +58,27 @@ export default function Chat({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     await handleSendMessage(content);
-    setContent("");
   };
 
   return (
     <div className="flex flex-col h-full w-full max-w-4xl mx-auto">
       <div className="flex-1 overflow-y-auto p-6 space-y-6 hide-scrollbar">
-        {messages?.map((message, index) => (
-          <Message
-            key={message._id}
-            message={message}
-            decisionId={decisionId}
-            onSuggestionClick={handleSendMessage}
-            isLastMessage={index === messages.length - 1}
-            showReport={showReport}
-            setShowReport={setShowReport}
-            decisionStatus={decisionStatus}
-          />
-        ))}
+        {messages && messages.length > 0 ? (
+          messages.map((message, index) => (
+            <Message
+              key={message._id}
+              message={message}
+              decisionId={decisionId}
+              onSuggestionClick={handleSendMessage}
+              isLastMessage={index === messages.length - 1}
+              showReport={showReport}
+              setShowReport={setShowReport}
+              decisionStatus={decisionStatus}
+            />
+          ))
+        ) : (
+          <ChatQuickStarts onSelectPrompt={handleSendMessage} />
+        )}
       </div>
       <div className="p-4">
         {isAiThinking && (

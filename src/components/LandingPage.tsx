@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { MagicCard } from "./ui/magicCard";
 import SiriOrb from "./ui/SiriOrb";
+import { QuickStartBadges } from "./QuickStartBadges";
 
 export default function LandingPage() {
   return (
@@ -24,6 +25,8 @@ export default function LandingPage() {
           </MagicCard>
         </Link>
       </div>
+      {/* Pass a dummy function to onSelectPrompt to make it decorative */}
+      <QuickStartBadges className="cursor-pointer" onSelectPrompt={() => {}} />
     </div>
   );
 }

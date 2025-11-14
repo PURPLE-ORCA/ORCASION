@@ -1,5 +1,82 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, action } from "./_generated/server";
+import { api } from "./_generated/api";
+
+export const sendChatMessage = action({
+  args: {
+    decisionId: v.id("decisions"),
+    content: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // 1. Add the user's message to the database
+    await ctx.runMutation(api.messages.addMessage, {
+      decisionId: args.decisionId,
+      content: args.content,
+      sender: "user",
+    });
+
+    // 2. Get the full message history
+    const messages = await ctx.runQuery(api.messages.listMessages, {
+      decisionId: args.decisionId,
+    });
+
+    const userMessageCount = messages.filter(m => m.sender === 'user').length;
+
+    // 3. Trigger title summarization on the first user message
+    if (userMessageCount === 1) {
+      await ctx.runAction(api.ai.summarizeDecisionTitle, {
+        decisionId: args.decisionId,
+      });
+    }
+
+    // 4. Get the AI's response
+    const aiResponse = await ctx.runAction(api.ai.getAiResponse, {
+      messages: messages.map(({ content, sender }) => ({
+        role: sender,
+        content,
+      })),
+      userMessageCount,
+    });
+
+    // 5. Process and save the AI's response
+    if (typeof aiResponse === 'object' && aiResponse !== null) {
+      if ('question' in aiResponse && 'suggestions' in aiResponse) {
+        await ctx.runMutation(api.messages.addMessage, {
+          decisionId: args.decisionId,
+          content: (aiResponse as { question: string }).question,
+          sender: "ai",
+          suggestions: (aiResponse as { suggestions: string[] }).suggestions,
+        });
+      } else if ('decision' in aiResponse && 'criteria' in aiResponse && 'options' in aiResponse) {
+        const decisionResponse = aiResponse as any; // Cast to access properties
+        await ctx.runMutation(api.decision_context.updateDecisionContext, {
+          decisionId: args.decisionId,
+          criteria: decisionResponse.criteria,
+          options: decisionResponse.options,
+          finalChoice: decisionResponse.decision.finalChoice,
+          confidenceScore: decisionResponse.decision.confidenceScore,
+          reasoning: decisionResponse.decision.reasoning,
+          modelUsed: "deepseek-v3.1",
+        });
+        await ctx.runMutation(api.messages.addMessage, {
+          decisionId: args.decisionId,
+          content: decisionResponse.decision.reasoning.trim(),
+          sender: "ai",
+        });
+        await ctx.runMutation(api.decisions.updateDecisionStatus, {
+          decisionId: args.decisionId,
+          status: "completed",
+        });
+      }
+    } else if (typeof aiResponse === 'string') {
+      await ctx.runMutation(api.messages.addMessage, {
+        decisionId: args.decisionId,
+        content: aiResponse,
+        sender: "ai",
+      });
+    }
+  },
+});
 
 export const createDecision = mutation({
   args: {
@@ -73,6 +150,16 @@ export const updateDecisionTitle = mutation({
   },
 });
 
+export const updateDecisionStatus = mutation({
+  args: {
+    decisionId: v.id("decisions"),
+    status: v.union(v.literal("in-progress"), v.literal("completed")),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.decisionId, { status: args.status });
+  },
+});
+
 
 
 export const deleteDecision = mutation({
@@ -109,11 +196,11 @@ export const deleteDecision = mutation({
     }
 
     // Delete associated context
-    const context = await ctx.db
+    const contexts = await ctx.db
       .query("decision_context")
       .withIndex("by_decisionId", (q) => q.eq("decisionId", args.decisionId))
-      .unique();
-    if (context) {
+      .collect();
+    for (const context of contexts) {
       await ctx.db.delete(context._id);
     }
 

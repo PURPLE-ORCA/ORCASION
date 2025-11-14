@@ -2,65 +2,113 @@
 
 import Chat from "@/components/Chat";
 import DecisionReport from "@/components/DecisionReport";
+import ActionPlanView from "@/components/ActionPlanView"; // To be created
 import { Id } from "../../../../convex/_generated/dataModel";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import AppLayout from "@/components/AppLayout";
 
+import { ChatSkeleton } from '@/components/ChatSkeleton';
+import { DecisionReportSkeleton } from '@/components/DecisionReportSkeleton';
+
+type ActiveView = 'chat' | 'report' | 'actionPlan';
+
 export default function DecisionPage() {
   const params = useParams();
-  const decisionId = params.decisionId as Id<"decisions">;
+  const decisionId = params.decisionId as Id<'decisions'>;
 
   const decision = useQuery(
     api.decisions.getDecision,
-    decisionId ? { decisionId } : "skip"
+    decisionId ? { decisionId } : 'skip'
   );
   const decisionContext = useQuery(
     api.decision_context.getDecisionContext,
-    decisionId ? { decisionId } : "skip"
+    decisionId ? { decisionId } : 'skip'
   );
 
-  const [showReport, setShowReport] = useState(false);
+  const [activeView, setActiveView] = useState<ActiveView>(() =>
+    decision?.status === 'completed' ? 'report' : 'chat'
+  );
+
+  const [hasAutoOpenedReport, setHasAutoOpenedReport] = useState(false);
 
   useEffect(() => {
-    if (decision?.status === "completed") {
-      setShowReport(true);
+    if (decision?.status === 'completed' && !hasAutoOpenedReport) {
+      setActiveView('report');
+      setHasAutoOpenedReport(true);
     }
-  }, [decision?.status]);
+  }, [decision?.status, hasAutoOpenedReport]);
 
-  if (!decision) {
+  const router = useRouter();
+
+  useEffect(() => {
+    if (decision === null) {
+      router.push("/");
+    }
+  }, [decision, router]);
+
+  if (decision === undefined || decisionContext === undefined) {
     return (
-      <main className="flex h-screen flex-col items-center justify-center">
-        <p>Loading decision...</p>
-      </main>
+      <AppLayout>
+        <div className="flex h-screen w-full">
+          <div className="w-1/2">
+            <ChatSkeleton />
+          </div>
+          <div className="w-1/2 border-l">
+            <DecisionReportSkeleton />
+          </div>
+        </div>
+      </AppLayout>
     );
   }
+
+  if (decision === null) {
+    return (
+      <AppLayout>
+        <div className="flex h-screen w-full items-center justify-center">
+          <p>Decision not found, redirecting...</p>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  const showPanel = activeView === 'report' || activeView === 'actionPlan';
 
   return (
     <AppLayout>
       <div className="flex h-screen w-full">
         <div
           className={`transition-all duration-300 ease-in-out ${
-            showReport ? "w-1/2" : "w-full"
+            showPanel ? "w-1/2" : "w-full"
           }`}
         >
           <Chat
-            showReport={showReport}
-            setShowReport={setShowReport}
+            showReport={showPanel}
+            setShowReport={(show) => setActiveView(show ? 'report' : 'chat')}
             decisionStatus={decision?.status}
           />
         </div>
         <div
           className={`transition-all duration-300 ease-in-out overflow-hidden ${
-            showReport ? "w-1/2 opacity-100" : "w-0 opacity-0"
+            showPanel ? "w-1/2 opacity-100" : "w-0 opacity-0"
           }`}
         >
-          <DecisionReport
-            decisionId={decisionId}
-            onClose={() => setShowReport(false)}
-          />
+          {activeView === 'report' && (
+            <DecisionReport
+              decisionId={decisionId}
+              onClose={() => setActiveView('chat')}
+              onSwitchToActionPlan={() => setActiveView('actionPlan')}
+            />
+          )}
+          {activeView === 'actionPlan' && (
+            <ActionPlanView
+              decisionId={decisionId}
+              onClose={() => setActiveView('chat')}
+              onSwitchToReport={() => setActiveView('report')}
+            />
+          )}
         </div>
       </div>
     </AppLayout>

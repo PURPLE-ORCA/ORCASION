@@ -121,6 +121,7 @@ export function CustomSignUpForm() {
                 type="password"
               />
             </div>
+            <div id="clerk-captcha"></div>
             <Button type="submit" className="w-full">
               Sign Up
             </Button>

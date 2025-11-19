@@ -46,8 +46,6 @@ export default defineSchema({
     finalChoice: v.string(),
     confidenceScore: v.float64(),
     actionPlan: v.optional(v.array(v.string())),
-    modelUsed: v.optional(
-      v.union(v.literal("deepseek-v3.1"), v.literal("qwen3"))
-    ),
+    modelUsed: v.optional(v.literal("gemini-2.5-pro")),
   }).index("by_decisionId", ["decisionId"]),
 });

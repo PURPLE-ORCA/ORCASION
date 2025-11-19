@@ -68,7 +68,7 @@ Stores the structured output of the AI's decision analysis (criteria, options, s
 {
   _id: v.id("decision_context"),
   decisionId: v.id("decisions"), // Reference to the parent decision
-  modelUsed: v.union(v.literal("deepseek-v3.1"), v.literal("qwen3")),
+  modelUsed: v.literal("gemini-2.5-pro"),
   criteria: v.array(v.object({ name: v.string(), weight: v.float64() })),
   options: v.array(
     v.object({

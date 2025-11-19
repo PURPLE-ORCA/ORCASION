@@ -56,7 +56,7 @@ export const sendChatMessage = action({
           finalChoice: decisionResponse.decision.finalChoice,
           confidenceScore: decisionResponse.decision.confidenceScore,
           reasoning: decisionResponse.decision.reasoning,
-          modelUsed: "deepseek-v3.1",
+          modelUsed: "gemini-2.5-pro",
         });
         await ctx.runMutation(api.messages.addMessage, {
           decisionId: args.decisionId,

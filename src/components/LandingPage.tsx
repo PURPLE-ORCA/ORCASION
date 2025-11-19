@@ -27,6 +27,7 @@ export default function LandingPage() {
       </div>
       {/* Pass a dummy function to onSelectPrompt to make it decorative */}
       <QuickStartBadges className="cursor-pointer" onSelectPrompt={() => {}} />
+        <footer className="mt-12 text-gray-400">Orcasion v1.5 &copy; all rights reserved</footer>
     </div>
   );
 }

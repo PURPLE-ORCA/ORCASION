@@ -18,12 +18,20 @@ export function CustomSignUpForm() {
   const [username, setUsername] = React.useState("");
   const [pendingVerification, setPendingVerification] = React.useState(false);
   const [code, setCode] = React.useState("");
+  const [emailError, setEmailError] = React.useState("");
+  const [usernameError, setUsernameError] = React.useState("");
+  const [passwordError, setPasswordError] = React.useState("");
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!isLoaded) {
       return;
     }
+
+    // Clear previous errors
+    setEmailError("");
+    setUsernameError("");
+    setPasswordError("");
 
     try {
       await signUp.create({
@@ -38,6 +46,23 @@ export function CustomSignUpForm() {
       setPendingVerification(true);
     } catch (err: any) {
       console.error(JSON.stringify(err, null, 2));
+      if (err.errors) {
+        err.errors.forEach((error: any) => {
+          switch (error.meta.paramName) {
+            case "email_address":
+              setEmailError(error.message);
+              break;
+            case "username":
+              setUsernameError(error.message);
+              break;
+            case "password":
+              setPasswordError(error.message);
+              break;
+            default:
+              break;
+          }
+        });
+      }
     }
   };
 
@@ -100,6 +125,7 @@ export function CustomSignUpForm() {
                 value={username}
                 placeholder="Username"
               />
+              {usernameError && <p className="text-red-500 text-xs mt-1">{usernameError}</p>}
             </div>
             <div>
               <Label htmlFor="email">Email</Label>
@@ -110,6 +136,7 @@ export function CustomSignUpForm() {
                 placeholder="Email Address"
                 type="email"
               />
+              {emailError && <p className="text-red-500 text-xs mt-1">{emailError}</p>}
             </div>
             <div>
               <Label htmlFor="password">Password</Label>
@@ -120,6 +147,7 @@ export function CustomSignUpForm() {
                 placeholder="Password"
                 type="password"
               />
+              {passwordError && <p className="text-red-500 text-xs mt-1">{passwordError}</p>}
             </div>
             <div id="clerk-captcha"></div>
             <Button type="submit" className="w-full">

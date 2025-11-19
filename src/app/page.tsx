@@ -5,7 +5,7 @@ import AppLayout from "@/components/AppLayout";
 import GuestLayout from "@/components/GuestLayout";
 import { Button } from "@/components/ui/button";
 import SiriOrb from "@/components/ui/SiriOrb";
-import { useConvexAuth } from "convex/react";
+import { useConvexAuth, useQuery } from "convex/react";
 import { useMutation } from "convex/react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -13,23 +13,26 @@ import { api } from "../../convex/_generated/api";
 
 export default function Home() {
   const { isAuthenticated, isLoading: isAuthLoading } = useConvexAuth();
+  const currentUser = useQuery(api.users.getCurrentUser);
   const router = useRouter();
   const createDecision = useMutation(api.decisions.createDecision);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
 
   const handleCreateDecision = async () => {
     if (!isAuthenticated) return;
-    setIsLoading(true);
+    setIsCreating(true);
     try {
       const decisionId = await createDecision({ title: "New Decision" });
       router.push(`/decision/${decisionId}`);
     } catch (error) {
       console.error("Failed to create a new decision:", error);
-      setIsLoading(false);
+      setIsCreating(false);
     }
   };
 
-  if (isAuthLoading) {
+  const isLoading = isAuthLoading || currentUser === undefined;
+
+  if (isLoading) {
     return (
       <main className="flex h-full w-full flex-col items-center justify-center">
         <SiriOrb />
@@ -48,8 +51,11 @@ export default function Home() {
             <p className="text-lg text-center mb-8">
               Your personal AI assistant to help you make better decisions.
             </p>
-            <Button onClick={handleCreateDecision} disabled={isLoading}>
-              {isLoading ? "Creating..." : "Start New Decision"}
+            <Button
+              onClick={handleCreateDecision}
+              disabled={isCreating || currentUser === null}
+            >
+              {isCreating ? "Creating..." : "Start New Decision"}
             </Button>
           </div>
         </AppLayout>

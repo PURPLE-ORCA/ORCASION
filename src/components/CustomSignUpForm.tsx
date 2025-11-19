@@ -18,9 +18,7 @@ export function CustomSignUpForm() {
   const [username, setUsername] = React.useState("");
   const [pendingVerification, setPendingVerification] = React.useState(false);
   const [code, setCode] = React.useState("");
-  const [emailError, setEmailError] = React.useState("");
-  const [usernameError, setUsernameError] = React.useState("");
-  const [passwordError, setPasswordError] = React.useState("");
+  const [error, setError] = React.useState("");
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -29,9 +27,7 @@ export function CustomSignUpForm() {
     }
 
     // Clear previous errors
-    setEmailError("");
-    setUsernameError("");
-    setPasswordError("");
+    setError("");
 
     try {
       await signUp.create({
@@ -47,21 +43,10 @@ export function CustomSignUpForm() {
     } catch (err: any) {
       console.error(JSON.stringify(err, null, 2));
       if (err.errors) {
-        err.errors.forEach((error: any) => {
-          switch (error.meta.paramName) {
-            case "email_address":
-              setEmailError(error.message);
-              break;
-            case "username":
-              setUsernameError(error.message);
-              break;
-            case "password":
-              setPasswordError(error.message);
-              break;
-            default:
-              break;
-          }
-        });
+        const errorMessage = err.errors.map((error: any) => error.longMessage).join(". ");
+        setError(errorMessage);
+      } else {
+        setError("An unknown error occurred. Please try again.");
       }
     }
   };
@@ -85,6 +70,7 @@ export function CustomSignUpForm() {
       }
     } catch (err: any) {
       console.error(JSON.stringify(err, null, 2));
+      setError(err.errors?.[0]?.longMessage || "An error occurred during verification.");
     }
   };
 
@@ -97,6 +83,7 @@ export function CustomSignUpForm() {
         {!pendingVerification && (
           <form onSubmit={handleSubmit} className="space-y-4">
             <h2 className="text-2xl font-bold text-center">Create your account</h2>
+            {error && <p className="text-red-500 text-sm text-center bg-red-500/10 p-2 rounded-md">{error}</p>}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="firstName">First Name</Label>
@@ -125,7 +112,6 @@ export function CustomSignUpForm() {
                 value={username}
                 placeholder="Username"
               />
-              {usernameError && <p className="text-red-500 text-xs mt-1">{usernameError}</p>}
             </div>
             <div>
               <Label htmlFor="email">Email</Label>
@@ -136,7 +122,6 @@ export function CustomSignUpForm() {
                 placeholder="Email Address"
                 type="email"
               />
-              {emailError && <p className="text-red-500 text-xs mt-1">{emailError}</p>}
             </div>
             <div>
               <Label htmlFor="password">Password</Label>
@@ -147,7 +132,6 @@ export function CustomSignUpForm() {
                 placeholder="Password"
                 type="password"
               />
-              {passwordError && <p className="text-red-500 text-xs mt-1">{passwordError}</p>}
             </div>
             <div id="clerk-captcha"></div>
             <Button type="submit" className="w-full">

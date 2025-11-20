@@ -56,7 +56,7 @@ export const sendChatMessage = action({
           finalChoice: decisionResponse.decision.finalChoice,
           confidenceScore: decisionResponse.decision.confidenceScore,
           reasoning: decisionResponse.decision.reasoning,
-          modelUsed: "gemini-2.5-flash",
+          modelUsed: "gemini-2.0-flash",
         });
         await ctx.runMutation(api.messages.addMessage, {
           decisionId: args.decisionId,

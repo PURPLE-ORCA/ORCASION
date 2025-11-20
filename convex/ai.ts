@@ -3,7 +3,7 @@ import { v } from "convex/values";
 import { api } from "./_generated/api";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const MODEL_NAME = "gemini-2.5-pro";
+const MODEL_NAME = "gemini-2.5-flash";
 
 // Initialize the Google Generative AI client
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
@@ -83,14 +83,14 @@ Your primary directive is to avoid premature conclusions. Never give a TED talk;
             } catch (jsonError) {
                 return text;
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error in getAiResponse action:", error);
-            throw new Error("Failed to get AI response.");
+            throw new Error(`Failed to get AI response: ${error.message}`);
         }
     },
 });
 
-export const summarizeDecisionTitle = action({
+export const summarizeDecisionTitle = action({ 
     args: {
         decisionId: v.id("decisions"),
     },

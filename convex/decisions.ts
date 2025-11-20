@@ -56,7 +56,7 @@ export const sendChatMessage = action({
           finalChoice: decisionResponse.decision.finalChoice,
           confidenceScore: decisionResponse.decision.confidenceScore,
           reasoning: decisionResponse.decision.reasoning,
-          modelUsed: "gemini-2.5-pro",
+          modelUsed: "gemini-2.5-flash",
         });
         await ctx.runMutation(api.messages.addMessage, {
           decisionId: args.decisionId,
@@ -66,6 +66,12 @@ export const sendChatMessage = action({
         await ctx.runMutation(api.decisions.updateDecisionStatus, {
           decisionId: args.decisionId,
           status: "completed",
+        });
+      } else {
+        await ctx.runMutation(api.messages.addMessage, {
+          decisionId: args.decisionId,
+          content: `[DEBUG] Unrecognized object response: ${JSON.stringify(aiResponse)}`,
+          sender: "ai",
         });
       }
     } else if (typeof aiResponse === 'string') {

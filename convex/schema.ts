@@ -46,6 +46,6 @@ export default defineSchema({
     finalChoice: v.string(),
     confidenceScore: v.float64(),
     actionPlan: v.optional(v.array(v.string())),
-    modelUsed: v.optional(v.literal("gemini-2.5-pro")),
+    modelUsed: v.optional(v.literal("gemini-2.5-flash")),
   }).index("by_decisionId", ["decisionId"]),
 });

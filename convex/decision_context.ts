@@ -91,7 +91,7 @@ export const updateDecisionContext = mutation({
     reasoning: v.string(),
     finalChoice: v.string(),
     confidenceScore: v.float64(),
-    modelUsed: v.optional(v.literal("gemini-2.5-pro")),
+    modelUsed: v.optional(v.literal("gemini-2.5-flash")),
   },
   handler: async (ctx, args) => {
     const decisionContext = await ctx.db

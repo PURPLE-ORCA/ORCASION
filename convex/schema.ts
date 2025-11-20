@@ -24,6 +24,8 @@ export default defineSchema({
     sender: v.union(v.literal("user"), v.literal("ai")),
     content: v.string(),
     suggestions: v.optional(v.array(v.string())),
+    storageId: v.optional(v.id("_storage")),
+    format: v.optional(v.string()),
   }).index("by_decisionId", ["decisionId"]),
 
   decision_context: defineTable({
@@ -49,10 +51,7 @@ export default defineSchema({
     hiddenOpportunity: v.optional(v.string()),
     actionPlan: v.optional(v.array(v.string())),
     modelUsed: v.optional(
-      v.union(
-        v.literal("gemini-2.0-flash"),
-        v.literal("gemini-2.5-flash")
-      )
+      v.union(v.literal("gemini-2.0-flash"), v.literal("gemini-2.5-flash"))
     ),
   }).index("by_decisionId", ["decisionId"]),
 });

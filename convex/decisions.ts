@@ -6,6 +6,8 @@ export const sendChatMessage = action({
   args: {
     decisionId: v.id("decisions"),
     content: v.string(),
+    storageId: v.optional(v.id("_storage")),
+    format: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     // 1. Add the user's message to the database
@@ -13,6 +15,8 @@ export const sendChatMessage = action({
       decisionId: args.decisionId,
       content: args.content,
       sender: "user",
+      storageId: args.storageId,
+      format: args.format,
     });
 
     // 2. Get the full message history
@@ -31,9 +35,11 @@ export const sendChatMessage = action({
 
     // 4. Get the AI's response
     const aiResponse = await ctx.runAction(api.ai.getAiResponse, {
-      messages: messages.map(({ content, sender }) => ({
-        role: sender,
-        content,
+      messages: messages.map((msg) => ({
+        role: msg.sender,
+        content: msg.content,
+        storageId: msg.storageId,
+        format: msg.format,
       })),
       userMessageCount,
     });

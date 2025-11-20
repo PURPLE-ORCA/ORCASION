@@ -7,6 +7,8 @@ export const addMessage = mutation({
     content: v.string(),
     sender: v.union(v.literal("user"), v.literal("ai")),
     suggestions: v.optional(v.array(v.string())),
+    storageId: v.optional(v.id("_storage")),
+    format: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -20,10 +22,16 @@ export const addMessage = mutation({
       content: args.content,
       sender: args.sender,
       suggestions: args.suggestions,
+      storageId: args.storageId,
+      format: args.format,
     });
 
     return messageId;
   },
+});
+
+export const generateUploadUrl = mutation(async (ctx) => {
+  return await ctx.storage.generateUploadUrl();
 });
 
 export const listMessages = query({
@@ -37,9 +45,18 @@ export const listMessages = query({
       return [];
     }
 
-    return await ctx.db
+    const messages = await ctx.db
       .query("decision_messages")
       .filter((q) => q.eq(q.field("decisionId"), args.decisionId))
       .collect();
+
+    return await Promise.all(
+      messages.map(async (msg) => ({
+        ...msg,
+        imageUrl: msg.storageId
+          ? await ctx.storage.getUrl(msg.storageId)
+          : undefined,
+      }))
+    );
   },
 });

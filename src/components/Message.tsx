@@ -14,7 +14,7 @@ export default function Message({
   setShowReport,
   decisionStatus,
 }: {
-  message: Doc<"decision_messages">;
+  message: Doc<"decision_messages"> & { imageUrl?: string };
   decisionId: string;
   onSuggestionClick: (content: string) => void;
   isLastMessage: boolean;
@@ -36,12 +36,19 @@ export default function Message({
       className={`flex flex-col gap-2 ${isUser ? "items-end" : "items-start"}`}
     >
       <div
-        className={`rounded-lg px-4 py-2 ${
-          isUser
-            ? "bg-primary text-black"
-            : "bg-muted text-white/90"
+        className={`rounded-lg px-4 py-2 max-w-[80%] ${
+          isUser ? "bg-primary text-black" : "bg-muted text-white/90"
         }`}
       >
+        {message.imageUrl && (
+          <div className="mb-2">
+            <img
+              src={message.imageUrl}
+              alt="Attached content"
+              className="rounded-md max-h-60 object-contain bg-black/20"
+            />
+          </div>
+        )}
         {isUser ? (
           message.content
         ) : (

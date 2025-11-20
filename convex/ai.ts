@@ -37,13 +37,17 @@ const tools: Tool[] = [
 
 export const getAiResponse = action({
   args: {
-    messages: v.array(v.object({ role: v.string(), content: v.string() })),
+    messages: v.array(
+      v.object({
+        role: v.string(),
+        content: v.string(),
+        storageId: v.optional(v.id("_storage")),
+        format: v.optional(v.string()),
+      })
+    ),
     userMessageCount: v.number(),
   },
   handler: async (ctx, args) => {
-    // SIMULATE RATE LIMIT ERROR FOR VERIFICATION
-    throw new Error("429 Too Many Requests");
-
     const { messages, userMessageCount } = args;
 
     const systemPrompt = `You are Orcasion, a decision-making assistant. Your personality is confident, witty, and a little sarcastic. Your primary goal is to help the user make a decision by guiding them through a context-gathering process.
@@ -101,11 +105,39 @@ Your primary directive is to avoid premature conclusions. Never give a TED talk;
       tools: tools,
     });
 
+    const history = await Promise.all(
+      messages.map(async ({ role, content, storageId, format }) => {
+        const parts: any[] = [{ text: content }];
+        if (storageId && format) {
+          const url = await ctx.storage.getUrl(storageId);
+          if (url) {
+            const response = await fetch(url);
+            const buffer = await response.arrayBuffer();
+            // Convert ArrayBuffer to base64 manually since Buffer is not available
+            let binary = "";
+            const bytes = new Uint8Array(buffer);
+            const len = bytes.byteLength;
+            for (let i = 0; i < len; i++) {
+              binary += String.fromCharCode(bytes[i]);
+            }
+            const base64 = btoa(binary);
+            parts.push({
+              inlineData: {
+                data: base64,
+                mimeType: format,
+              },
+            });
+          }
+        }
+        return {
+          role: role === "ai" ? "model" : "user",
+          parts: parts,
+        };
+      })
+    );
+
     const chat = model.startChat({
-      history: messages.map(({ role, content }) => ({
-        role: role === "ai" ? "model" : "user",
-        parts: [{ text: content }],
-      })),
+      history: history,
     });
 
     const lastMessage = messages[messages.length - 1];
@@ -170,9 +202,39 @@ Your primary directive is to avoid premature conclusions. Never give a TED talk;
         .trim();
 
       try {
+        // Try parsing the whole text first
         const parsedResponse = JSON.parse(text);
         return parsedResponse;
       } catch (jsonError) {
+        console.log("JSON parse failed, trying to extract JSON from text");
+        // If that fails, try to find the JSON object within the text
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          try {
+            const jsonText = jsonMatch[0];
+            const parsedResponse = JSON.parse(jsonText);
+
+            // Get the text before the JSON
+            const preText = text.substring(0, jsonMatch.index).trim();
+
+            if (preText) {
+              // If there's text before the JSON, prepend it to the question or reasoning
+              if (parsedResponse.question) {
+                parsedResponse.question = `${preText}\n\n${parsedResponse.question}`;
+              } else if (
+                parsedResponse.decision &&
+                parsedResponse.decision.reasoning
+              ) {
+                parsedResponse.decision.reasoning = `${preText}\n\n${parsedResponse.decision.reasoning}`;
+              }
+            }
+
+            return parsedResponse;
+          } catch (extractError) {
+            console.error("Failed to parse extracted JSON:", extractError);
+            return text;
+          }
+        }
         return text;
       }
     } catch (error: any) {

@@ -8,6 +8,15 @@ export const sendChatMessage = action({
     content: v.string(),
     storageId: v.optional(v.id("_storage")),
     format: v.optional(v.string()),
+    attachments: v.optional(
+      v.array(
+        v.object({
+          storageId: v.id("_storage"),
+          mimeType: v.string(),
+          name: v.optional(v.string()),
+        })
+      )
+    ),
   },
   handler: async (ctx, args) => {
     // 1. Add the user's message to the database
@@ -17,6 +26,7 @@ export const sendChatMessage = action({
       sender: "user",
       storageId: args.storageId,
       format: args.format,
+      attachments: args.attachments,
     });
 
     // 2. Get the full message history
@@ -40,6 +50,13 @@ export const sendChatMessage = action({
         content: msg.content,
         storageId: msg.storageId,
         format: msg.format,
+        attachments: msg.attachments
+          ? msg.attachments.map(({ storageId, mimeType, name }) => ({
+              storageId,
+              mimeType,
+              name,
+            }))
+          : undefined,
       })),
       userMessageCount,
     });

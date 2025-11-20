@@ -24,8 +24,17 @@ export default defineSchema({
     sender: v.union(v.literal("user"), v.literal("ai")),
     content: v.string(),
     suggestions: v.optional(v.array(v.string())),
-    storageId: v.optional(v.id("_storage")),
-    format: v.optional(v.string()),
+    storageId: v.optional(v.id("_storage")), // Deprecated: use attachments
+    format: v.optional(v.string()), // Deprecated: use attachments
+    attachments: v.optional(
+      v.array(
+        v.object({
+          storageId: v.id("_storage"),
+          mimeType: v.string(),
+          name: v.optional(v.string()),
+        })
+      )
+    ),
   }).index("by_decisionId", ["decisionId"]),
 
   decision_context: defineTable({

@@ -43,6 +43,15 @@ export const getAiResponse = action({
         content: v.string(),
         storageId: v.optional(v.id("_storage")),
         format: v.optional(v.string()),
+        attachments: v.optional(
+          v.array(
+            v.object({
+              storageId: v.id("_storage"),
+              mimeType: v.string(),
+              name: v.optional(v.string()),
+            })
+          )
+        ),
       })
     ),
     userMessageCount: v.number(),
@@ -106,34 +115,62 @@ Your primary directive is to avoid premature conclusions. Never give a TED talk;
     });
 
     const history = await Promise.all(
-      messages.map(async ({ role, content, storageId, format }) => {
-        const parts: any[] = [{ text: content }];
-        if (storageId && format) {
-          const url = await ctx.storage.getUrl(storageId);
-          if (url) {
-            const response = await fetch(url);
-            const buffer = await response.arrayBuffer();
-            // Convert ArrayBuffer to base64 manually since Buffer is not available
-            let binary = "";
-            const bytes = new Uint8Array(buffer);
-            const len = bytes.byteLength;
-            for (let i = 0; i < len; i++) {
-              binary += String.fromCharCode(bytes[i]);
+      messages.map(
+        async ({ role, content, storageId, format, attachments }) => {
+          const parts: any[] = [{ text: content }];
+
+          // Handle legacy single attachment
+          if (storageId && format) {
+            const url = await ctx.storage.getUrl(storageId);
+            if (url) {
+              const response = await fetch(url);
+              const buffer = await response.arrayBuffer();
+              let binary = "";
+              const bytes = new Uint8Array(buffer);
+              const len = bytes.byteLength;
+              for (let i = 0; i < len; i++) {
+                binary += String.fromCharCode(bytes[i]);
+              }
+              const base64 = btoa(binary);
+              parts.push({
+                inlineData: {
+                  data: base64,
+                  mimeType: format,
+                },
+              });
             }
-            const base64 = btoa(binary);
-            parts.push({
-              inlineData: {
-                data: base64,
-                mimeType: format,
-              },
-            });
           }
+
+          // Handle new multiple attachments
+          if (attachments && attachments.length > 0) {
+            for (const attachment of attachments) {
+              const url = await ctx.storage.getUrl(attachment.storageId);
+              if (url) {
+                const response = await fetch(url);
+                const buffer = await response.arrayBuffer();
+                let binary = "";
+                const bytes = new Uint8Array(buffer);
+                const len = bytes.byteLength;
+                for (let i = 0; i < len; i++) {
+                  binary += String.fromCharCode(bytes[i]);
+                }
+                const base64 = btoa(binary);
+                parts.push({
+                  inlineData: {
+                    data: base64,
+                    mimeType: attachment.mimeType,
+                  },
+                });
+              }
+            }
+          }
+
+          return {
+            role: role === "ai" ? "model" : "user",
+            parts: parts,
+          };
         }
-        return {
-          role: role === "ai" ? "model" : "user",
-          parts: parts,
-        };
-      })
+      )
     );
 
     const chat = model.startChat({

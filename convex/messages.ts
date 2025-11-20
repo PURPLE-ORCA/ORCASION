@@ -9,6 +9,15 @@ export const addMessage = mutation({
     suggestions: v.optional(v.array(v.string())),
     storageId: v.optional(v.id("_storage")),
     format: v.optional(v.string()),
+    attachments: v.optional(
+      v.array(
+        v.object({
+          storageId: v.id("_storage"),
+          mimeType: v.string(),
+          name: v.optional(v.string()),
+        })
+      )
+    ),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -24,6 +33,7 @@ export const addMessage = mutation({
       suggestions: args.suggestions,
       storageId: args.storageId,
       format: args.format,
+      attachments: args.attachments,
     });
 
     return messageId;
@@ -51,12 +61,26 @@ export const listMessages = query({
       .collect();
 
     return await Promise.all(
-      messages.map(async (msg) => ({
-        ...msg,
-        imageUrl: msg.storageId
+      messages.map(async (msg) => {
+        const imageUrl = msg.storageId
           ? await ctx.storage.getUrl(msg.storageId)
-          : undefined,
-      }))
+          : undefined;
+
+        const attachments = msg.attachments
+          ? await Promise.all(
+              msg.attachments.map(async (att) => ({
+                ...att,
+                url: await ctx.storage.getUrl(att.storageId),
+              }))
+            )
+          : undefined;
+
+        return {
+          ...msg,
+          imageUrl,
+          attachments,
+        };
+      })
     );
   },
 });

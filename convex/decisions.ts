@@ -40,6 +40,9 @@ export const sendChatMessage = action({
 
     // 5. Process and save the AI's response
     if (typeof aiResponse === "object" && aiResponse !== null) {
+      if ("error" in aiResponse && aiResponse.error === "RATE_LIMIT_EXCEEDED") {
+        throw new Error("RATE_LIMIT_EXCEEDED");
+      }
       if ("question" in aiResponse && "suggestions" in aiResponse) {
         await ctx.runMutation(api.messages.addMessage, {
           decisionId: args.decisionId,

@@ -4,6 +4,7 @@ import { useAction, useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import Message from "./Message";
 import { useEffect, useState } from "react";
+import { X } from "lucide-react";
 import { Id } from "../../convex/_generated/dataModel";
 import AnimatedInput from "./ui/AnimatedInput";
 import { Button } from "./ui/button";
@@ -33,9 +34,8 @@ export default function Chat({
   );
   const [content, setContent] = useState("");
   const [isAiThinking, setIsAiThinking] = useState(false);
+  const [showRateLimitBanner, setShowRateLimitBanner] = useState(false);
   const sendChatMessage = useAction(api.decisions.sendChatMessage);
-
-
 
   const handleSendMessage = async (messageContent: string) => {
     if (messageContent.trim()) {
@@ -46,8 +46,11 @@ export default function Chat({
           decisionId,
           content: messageContent,
         });
-      } catch (error) {
+      } catch (error: any) {
         console.error("Error sending message:", error);
+        if (error.message.includes("RATE_LIMIT_EXCEEDED")) {
+          setShowRateLimitBanner(true);
+        }
         // Optionally, add an error message to the chat UI
       } finally {
         setIsAiThinking(false);
@@ -86,6 +89,17 @@ export default function Chat({
             <Reasoning isStreaming={true}>
               <ReasoningTrigger />
             </Reasoning>
+          </div>
+        )}
+        {showRateLimitBanner && (
+          <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm flex items-center justify-between animate-in fade-in slide-in-from-bottom-2">
+            <span>You exceeded your quota, please try again later.</span>
+            <button
+              onClick={() => setShowRateLimitBanner(false)}
+              className="hover:text-red-300 transition-colors"
+            >
+              <X size={16} />
+            </button>
           </div>
         )}
         <form onSubmit={handleSubmit} className="flex items-center gap-2">

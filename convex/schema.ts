@@ -45,6 +45,8 @@ export default defineSchema({
     reasoning: v.string(),
     finalChoice: v.string(),
     confidenceScore: v.float64(),
+    primaryRisk: v.optional(v.string()),
+    hiddenOpportunity: v.optional(v.string()),
     actionPlan: v.optional(v.array(v.string())),
     modelUsed: v.optional(
       v.union(

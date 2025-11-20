@@ -105,6 +105,8 @@ export const updateDecisionContext = mutation({
     reasoning: v.string(),
     finalChoice: v.string(),
     confidenceScore: v.float64(),
+    primaryRisk: v.optional(v.string()),
+    hiddenOpportunity: v.optional(v.string()),
     modelUsed: v.optional(
       v.union(
         v.literal("gemini-2.0-flash"),
@@ -126,6 +128,8 @@ export const updateDecisionContext = mutation({
         reasoning: args.reasoning,
         finalChoice: args.finalChoice,
         confidenceScore: args.confidenceScore,
+        primaryRisk: args.primaryRisk,
+        hiddenOpportunity: args.hiddenOpportunity,
         modelUsed: args.modelUsed,
       });
     } else {
@@ -135,6 +139,8 @@ export const updateDecisionContext = mutation({
         reasoning: args.reasoning,
         finalChoice: args.finalChoice,
         confidenceScore: args.confidenceScore,
+        primaryRisk: args.primaryRisk,
+        hiddenOpportunity: args.hiddenOpportunity,
         modelUsed: args.modelUsed,
       });
     }

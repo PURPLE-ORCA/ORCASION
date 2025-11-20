@@ -20,7 +20,7 @@ export const sendChatMessage = action({
       decisionId: args.decisionId,
     });
 
-    const userMessageCount = messages.filter(m => m.sender === 'user').length;
+    const userMessageCount = messages.filter((m) => m.sender === "user").length;
 
     // 3. Trigger title summarization on the first user message
     if (userMessageCount === 1) {
@@ -39,15 +39,19 @@ export const sendChatMessage = action({
     });
 
     // 5. Process and save the AI's response
-    if (typeof aiResponse === 'object' && aiResponse !== null) {
-      if ('question' in aiResponse && 'suggestions' in aiResponse) {
+    if (typeof aiResponse === "object" && aiResponse !== null) {
+      if ("question" in aiResponse && "suggestions" in aiResponse) {
         await ctx.runMutation(api.messages.addMessage, {
           decisionId: args.decisionId,
           content: (aiResponse as { question: string }).question,
           sender: "ai",
           suggestions: (aiResponse as { suggestions: string[] }).suggestions,
         });
-      } else if ('decision' in aiResponse && 'criteria' in aiResponse && 'options' in aiResponse) {
+      } else if (
+        "decision" in aiResponse &&
+        "criteria" in aiResponse &&
+        "options" in aiResponse
+      ) {
         const decisionResponse = aiResponse as any; // Cast to access properties
         await ctx.runMutation(api.decision_context.updateDecisionContext, {
           decisionId: args.decisionId,
@@ -56,6 +60,8 @@ export const sendChatMessage = action({
           finalChoice: decisionResponse.decision.finalChoice,
           confidenceScore: decisionResponse.decision.confidenceScore,
           reasoning: decisionResponse.decision.reasoning,
+          primaryRisk: decisionResponse.decision.primaryRisk,
+          hiddenOpportunity: decisionResponse.decision.hiddenOpportunity,
           modelUsed: "gemini-2.0-flash",
         });
         await ctx.runMutation(api.messages.addMessage, {
@@ -70,11 +76,13 @@ export const sendChatMessage = action({
       } else {
         await ctx.runMutation(api.messages.addMessage, {
           decisionId: args.decisionId,
-          content: `[DEBUG] Unrecognized object response: ${JSON.stringify(aiResponse)}`,
+          content: `[DEBUG] Unrecognized object response: ${JSON.stringify(
+            aiResponse
+          )}`,
           sender: "ai",
         });
       }
-    } else if (typeof aiResponse === 'string') {
+    } else if (typeof aiResponse === "string") {
       await ctx.runMutation(api.messages.addMessage, {
         decisionId: args.decisionId,
         content: aiResponse,
@@ -165,8 +173,6 @@ export const updateDecisionStatus = mutation({
     await ctx.db.patch(args.decisionId, { status: args.status });
   },
 });
-
-
 
 export const deleteDecision = mutation({
   args: {

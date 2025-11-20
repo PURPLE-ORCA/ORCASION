@@ -5,7 +5,7 @@ import { useQuery, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
-import { X, CheckCircle2, XCircle, Copy, Rocket, ArrowRight } from "lucide-react";
+import { X, CheckCircle2, XCircle, Copy, Rocket, ArrowRight, AlertTriangle, Lightbulb } from "lucide-react";
 import { Separator } from "./ui/separator";
 
 interface DecisionReportProps {
@@ -60,13 +60,13 @@ const DecisionReport: React.FC<DecisionReportProps> = ({
     );
   }
 
-  const { finalChoice, confidenceScore, reasoning, options, criteria, actionPlan } =
+  const { finalChoice, confidenceScore, reasoning, options, criteria, actionPlan, primaryRisk, hiddenOpportunity } =
     decisionContext;
 
   const handleCopy = () => {
     if (!decisionContext) return;
 
-    const { finalChoice, confidenceScore, reasoning, options, criteria, actionPlan } =
+    const { finalChoice, confidenceScore, reasoning, options, criteria, actionPlan, primaryRisk, hiddenOpportunity } =
       decisionContext;
 
     const reportParts = [
@@ -75,6 +75,16 @@ const DecisionReport: React.FC<DecisionReportProps> = ({
       `Recommendation: ${finalChoice}`,
       `Confidence: ${(confidenceScore * 100).toFixed(0)}%`,
       `\nReasoning:\n${reasoning}`,
+    ];
+
+    if (primaryRisk) {
+        reportParts.push(`\nPrimary Risk: ${primaryRisk}`);
+    }
+    if (hiddenOpportunity) {
+        reportParts.push(`Hidden Opportunity: ${hiddenOpportunity}`);
+    }
+
+    reportParts.push(
       "\nYOUR PRIORITIES",
       "--------------------",
       ...criteria.map(
@@ -82,7 +92,7 @@ const DecisionReport: React.FC<DecisionReportProps> = ({
       ),
       "\nOPTIONS ANALYSIS",
       "--------------------",
-    ];
+    );
 
     options.forEach((option) => {
       reportParts.push(
@@ -112,7 +122,9 @@ const DecisionReport: React.FC<DecisionReportProps> = ({
     <div className="bg-card text-gray-200 w-full h-full overflow-y-auto hide-scrollbar p-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-purple-400">Decision Briefing</h2>
+        <h2 className="text-2xl font-bold text-purple-400">
+          Decision Briefing
+        </h2>
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
@@ -160,9 +172,11 @@ const DecisionReport: React.FC<DecisionReportProps> = ({
         <p className="text-gray-300">{reasoning}</p>
       </div>
 
-      {/* Section 2: Your Priorities */}
+      {/* Your Priorities */}
       <div className="mb-8">
-        <h3 className="text-xl font-semibold mb-3 text-white">Your Priorities</h3>
+        <h3 className="text-xl font-semibold mb-3 text-white">
+          Your Priorities
+        </h3>
         <div className="flex flex-wrap gap-2">
           {criteria.map((criterion, index) => (
             <div
@@ -177,7 +191,9 @@ const DecisionReport: React.FC<DecisionReportProps> = ({
 
       {/* Section 3: Options Analysis */}
       <div>
-        <h3 className="text-xl font-semibold mb-4 text-white">Options Analysis</h3>
+        <h3 className="text-xl font-semibold mb-4 text-white">
+          Options Analysis
+        </h3>
         <div className="space-y-4">
           {options.map((option, index) => (
             <div key={index} className="bg-gray-800/40 p-4 rounded-lg">
@@ -217,6 +233,30 @@ const DecisionReport: React.FC<DecisionReportProps> = ({
           ))}
         </div>
       </div>
+
+      {/* Strategic Insights */}
+      {(primaryRisk || hiddenOpportunity) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
+          {primaryRisk && (
+            <div className="bg-red-900/20 border border-red-900/50 p-4 rounded-lg">
+              <div className="flex items-center gap-2 mb-2 text-red-400">
+                <AlertTriangle className="h-5 w-5" />
+                <h3 className="font-semibold">Primary Risk</h3>
+              </div>
+              <p className="text-sm text-gray-300">{primaryRisk}</p>
+            </div>
+          )}
+          {hiddenOpportunity && (
+            <div className="bg-blue-900/20 border border-blue-900/50 p-4 rounded-lg">
+              <div className="flex items-center gap-2 mb-2 text-blue-400">
+                <Lightbulb className="h-5 w-5" />
+                <h3 className="font-semibold">Hidden Opportunity</h3>
+              </div>
+              <p className="text-sm text-gray-300">{hiddenOpportunity}</p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

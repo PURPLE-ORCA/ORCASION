@@ -68,7 +68,9 @@ Follow these steps:
           "decision": {
             "finalChoice": "Recommended Option Name",
             "confidenceScore": 0.95,
-            "reasoning": "A concise explanation of why this option is recommended."
+            "reasoning": "A concise explanation of why this option is recommended.",
+            "primaryRisk": "The single biggest downside or risk of this choice.",
+            "hiddenOpportunity": "A less obvious benefit or second-order positive consequence."
           },
           "criteria": [
             { "name": "Criterion 1", "weight": 0.8 }
@@ -229,7 +231,9 @@ Based on the updated criteria and the previous conversation, output a JSON objec
   "decision": {
     "finalChoice": "Recommended Option Name",
     "confidenceScore": 0.95,
-    "reasoning": "A concise explanation of why this option is recommended."
+    "reasoning": "A concise explanation of why this option is recommended.",
+    "primaryRisk": "The single biggest downside or risk of this choice.",
+    "hiddenOpportunity": "A less obvious benefit or second-order positive consequence."
   },
   "criteria": [...],
   "options": [...]
@@ -260,6 +264,8 @@ Based on the updated criteria and the previous conversation, output a JSON objec
                     finalChoice: parsedResponse.decision.finalChoice,
                     confidenceScore: parsedResponse.decision.confidenceScore,
                     reasoning: parsedResponse.decision.reasoning,
+                    primaryRisk: parsedResponse.decision.primaryRisk,
+                    hiddenOpportunity: parsedResponse.decision.hiddenOpportunity,
                 });
                 await ctx.runMutation(api.messages.addMessage, {
                     decisionId,

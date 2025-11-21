@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { useQuery, useAction } from "convex/react";
+import { useQuery, useAction, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,7 @@ import {
   Download,
   MessageCircle,
   ExternalLink,
+  Users,
 } from "lucide-react";
 import { Separator } from "./ui/separator";
 import {
@@ -59,6 +60,26 @@ const DecisionReport: React.FC<DecisionReportProps> = ({
   const [isGeneratingDevilsAdvocate, setIsGeneratingDevilsAdvocate] =
     useState(false);
   const [isGeneratingRedditScout, setIsGeneratingRedditScout] = useState(false);
+  const [isCreatingSession, setIsCreatingSession] = useState(false);
+  const [copySuccess, setCopySuccess] = useState(false);
+
+  const createSession = useMutation(api.council.createSession);
+  const councilVotes = useQuery(api.council.getVotes, { decisionId });
+
+  const handleShareCouncil = async () => {
+    setIsCreatingSession(true);
+    try {
+      const token = await createSession({ decisionId });
+      const url = `${window.location.origin}/council/${token}`;
+      await navigator.clipboard.writeText(url);
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000);
+    } catch (error) {
+      console.error("Failed to create council session:", error);
+    } finally {
+      setIsCreatingSession(false);
+    }
+  };
 
   const isActionPlanReady =
     !!decisionContext?.finalChoice && !!decisionContext?.reasoning;
@@ -394,6 +415,24 @@ const DecisionReport: React.FC<DecisionReportProps> = ({
                 <Scroll className="h-4 w-4 mr-2 text-amber-400" />
                 <span>Commit</span>
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleShareCouncil}>
+                {isCreatingSession ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : copySuccess ? (
+                  <CheckCircle2 className="mr-2 h-4 w-4 text-green-500" />
+                ) : (
+                  <Users className="mr-2 h-4 w-4" />
+                )}
+                {copySuccess ? "Link Copied!" : "Ask The Council"}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleRedditScoutClick}>
+                {isGeneratingRedditScout ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <MessageCircle className="mr-2 h-4 w-4" />
+                )}
+                What does Reddit say?
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
@@ -701,6 +740,82 @@ const DecisionReport: React.FC<DecisionReportProps> = ({
           }
         }
       `}</style>
+      {/* Council Report Section */}
+      {councilVotes && councilVotes.length > 0 && decisionContext && (
+        <div className="mt-8 print:break-inside-avoid">
+          <div className="flex items-center gap-2 mb-4">
+            <Users className="h-6 w-6 text-purple-400" />
+            <h3 className="text-xl font-semibold text-white">
+              The Council Has Spoken
+            </h3>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            {/* Vote Tally */}
+            <div className="bg-slate-900 border border-purple-500/30 p-4 rounded-lg">
+              <h4 className="font-medium text-slate-300 mb-3">Vote Tally</h4>
+              <div className="space-y-3">
+                {options.map((option) => {
+                  const voteCount = councilVotes.filter(
+                    (v) => v.optionName === option.name
+                  ).length;
+                  const percentage =
+                    councilVotes.length > 0
+                      ? (voteCount / councilVotes.length) * 100
+                      : 0;
+                  return (
+                    <div key={option.name}>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className="text-white">{option.name}</span>
+                        <span className="text-purple-300">
+                          {voteCount} votes ({percentage.toFixed(0)}%)
+                        </span>
+                      </div>
+                      <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-purple-500 transition-all duration-500"
+                          style={{ width: `${percentage}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Comments */}
+            <div className="bg-slate-900 border border-slate-800 p-4 rounded-lg max-h-[300px] overflow-y-auto">
+              <h4 className="font-medium text-slate-300 mb-3">
+                Council Comments
+              </h4>
+              <div className="space-y-3">
+                {councilVotes
+                  .filter((v) => v.comment)
+                  .map((vote, i) => (
+                    <div
+                      key={i}
+                      className="bg-slate-950 p-3 rounded border border-slate-800"
+                    >
+                      <div className="flex justify-between items-start mb-1">
+                        <span className="font-bold text-purple-400 text-sm">
+                          {vote.voterName}
+                        </span>
+                        <span className="text-xs text-slate-500">
+                          voted {vote.optionName}
+                        </span>
+                      </div>
+                      <p className="text-sm text-slate-300">{vote.comment}</p>
+                    </div>
+                  ))}
+                {councilVotes.every((v) => !v.comment) && (
+                  <p className="text-sm text-slate-500 italic">
+                    No comments yet.
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

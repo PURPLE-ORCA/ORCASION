@@ -74,4 +74,18 @@ export default defineSchema({
       })
     ),
   }).index("by_decisionId", ["decisionId"]),
+
+  council_sessions: defineTable({
+    decisionId: v.id("decisions"),
+    publicToken: v.string(),
+    status: v.string(), // "active", "closed"
+  }).index("by_token", ["publicToken"]),
+
+  council_votes: defineTable({
+    sessionId: v.id("council_sessions"),
+    voterName: v.string(),
+    optionName: v.string(),
+    comment: v.optional(v.string()),
+    timestamp: v.number(),
+  }).index("by_sessionId", ["sessionId"]),
 });

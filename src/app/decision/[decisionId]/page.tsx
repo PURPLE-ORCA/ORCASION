@@ -13,8 +13,15 @@ import DecisionReport from "@/components/DecisionReport";
 import ActionPlanView from "@/components/ActionPlanView";
 import SimulationView from "@/components/SimulationView";
 import ContractView from "@/components/ContractView";
+import CouncilReportView from "@/components/CouncilReportView";
 
-type ActiveView = "chat" | "report" | "actionPlan" | "simulation" | "contract";
+type ActiveView =
+  | "chat"
+  | "report"
+  | "actionPlan"
+  | "simulation"
+  | "contract"
+  | "council";
 
 export default function DecisionPage() {
   const params = useParams();
@@ -79,7 +86,8 @@ export default function DecisionPage() {
     activeView === "report" ||
     activeView === "actionPlan" ||
     activeView === "simulation" ||
-    activeView === "contract";
+    activeView === "contract" ||
+    activeView === "council";
 
   return (
     <AppLayout>
@@ -107,6 +115,7 @@ export default function DecisionPage() {
               onSwitchToActionPlan={() => setActiveView("actionPlan")}
               onSwitchToSimulation={() => setActiveView("simulation")}
               onSwitchToContract={() => setActiveView("contract")}
+              onSwitchToCouncil={() => setActiveView("council")}
             />
           )}
           {activeView === "actionPlan" && (
@@ -127,6 +136,13 @@ export default function DecisionPage() {
             <ContractView
               decisionId={decisionId}
               onClose={() => setActiveView("report")}
+            />
+          )}
+          {activeView === "council" && (
+            <CouncilReportView
+              decisionId={decisionId}
+              onClose={() => setActiveView("chat")}
+              onSwitchToReport={() => setActiveView("report")}
             />
           )}
         </div>

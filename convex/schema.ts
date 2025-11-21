@@ -66,5 +66,12 @@ export default defineSchema({
     devilsAdvocate: v.optional(v.string()),
     commitmentContract: v.optional(v.string()),
     isSigned: v.optional(v.boolean()),
+    redditScout: v.optional(
+      v.object({
+        consensus: v.string(),
+        topComment: v.string(),
+        url: v.string(),
+      })
+    ),
   }).index("by_decisionId", ["decisionId"]),
 });

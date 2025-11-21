@@ -602,3 +602,108 @@ export const generateCommitmentContract = action({
     }
   },
 });
+
+export const generateRedditScout = action({
+  args: {
+    decisionId: v.id("decisions"),
+    decisionContext: v.object({
+      finalChoice: v.string(),
+      reasoning: v.string(),
+      options: v.array(
+        v.object({
+          name: v.string(),
+          pros: v.array(v.string()),
+          cons: v.array(v.string()),
+          score: v.float64(),
+        })
+      ),
+    }),
+  },
+  handler: async (ctx, args) => {
+    const { decisionContext } = args;
+    const { finalChoice, options } = decisionContext;
+
+    // Construct a search query
+    const otherOptions = options
+      .filter((o) => o.name !== finalChoice)
+      .map((o) => o.name)
+      .join(" vs ");
+    const query = `site:reddit.com ${finalChoice} vs ${otherOptions} review consensus`;
+
+    const tools: any[] = [
+      {
+        googleSearch: {}, // Use the native Google Search tool
+      },
+    ];
+
+    const systemPrompt = `You are a Reddit Scout. Your job is to find the "word on the street" about a decision.
+    
+    The user is choosing: "${finalChoice}".
+    Alternatives considered: ${otherOptions}.
+
+    Use the Google Search tool to find Reddit threads discussing this.
+    
+    Output a JSON object with:
+    1.  "consensus": A 2-sentence summary of what most Redditors say. Is it a "buy" or "avoid"?
+    2.  "topComment": A representative, slightly informal quote that captures the vibe (e.g., "Best money I ever spent" or "Avoid like the plague").
+    3.  "url": The URL of the most relevant Reddit thread you found.
+
+    Output ONLY the JSON object.`;
+
+    const model = genAI.getGenerativeModel({
+      model: "gemini-2.0-flash",
+      systemInstruction: systemPrompt,
+      tools: tools,
+    });
+
+    try {
+      const result = await model.generateContent(query);
+      const response = result.response;
+      const text = response
+        .text()
+        .replace(/```json/g, "")
+        .replace(/```/g, "")
+        .trim();
+
+      // Extract the grounding metadata to find the source URL if the model didn't output it perfectly
+      let sourceUrl = "";
+      if (
+        response.candidates &&
+        response.candidates[0].groundingMetadata?.groundingChunks
+      ) {
+        const chunks = response.candidates[0].groundingMetadata.groundingChunks;
+        const webChunk = chunks.find((c: any) =>
+          c.web?.uri?.includes("reddit.com")
+        );
+        if (webChunk && webChunk.web && webChunk.web.uri) {
+          sourceUrl = webChunk.web.uri;
+        }
+      }
+
+      const parsed = JSON.parse(text);
+
+      // Fallback URL if the model didn't find one or hallucinated one
+      if (!parsed.url || !parsed.url.includes("reddit.com")) {
+        parsed.url =
+          sourceUrl ||
+          "https://www.reddit.com/search/?q=" +
+            encodeURIComponent(`${finalChoice} review`);
+      }
+
+      if (parsed.consensus && parsed.topComment) {
+        await ctx.runMutation(api.decisions.saveRedditScout, {
+          decisionId: args.decisionId,
+          redditScout: {
+            consensus: parsed.consensus,
+            topComment: parsed.topComment,
+            url: parsed.url,
+          },
+        });
+        return parsed;
+      }
+    } catch (error) {
+      console.error("Error generating Reddit Scout:", error);
+      throw new Error("Failed to scout Reddit.");
+    }
+  },
+});

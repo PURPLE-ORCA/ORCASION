@@ -329,3 +329,28 @@ export const signContract = mutation({
     });
   },
 });
+
+export const saveRedditScout = mutation({
+  args: {
+    decisionId: v.id("decisions"),
+    redditScout: v.object({
+      consensus: v.string(),
+      topComment: v.string(),
+      url: v.string(),
+    }),
+  },
+  handler: async (ctx, args) => {
+    const decisionContext = await ctx.db
+      .query("decision_context")
+      .withIndex("by_decisionId", (q) => q.eq("decisionId", args.decisionId))
+      .first();
+
+    if (!decisionContext) {
+      throw new Error("Decision context not found");
+    }
+
+    await ctx.db.patch(decisionContext._id, {
+      redditScout: args.redditScout,
+    });
+  },
+});

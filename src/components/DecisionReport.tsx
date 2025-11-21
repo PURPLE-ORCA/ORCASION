@@ -20,6 +20,8 @@ import {
   Loader2,
   Sparkles,
   Download,
+  MessageCircle,
+  ExternalLink,
 } from "lucide-react";
 import { Separator } from "./ui/separator";
 import {
@@ -50,11 +52,13 @@ const DecisionReport: React.FC<DecisionReportProps> = ({
   const generateActionPlan = useAction(api.decision_context.generateActionPlan);
   const generateSimulation = useAction(api.ai.generateSimulation);
   const generateDevilsAdvocate = useAction(api.ai.generateDevilsAdvocate);
+  const generateRedditScout = useAction(api.ai.generateRedditScout);
 
   const [isLoadingPlan, setIsLoadingPlan] = useState(false);
   const [isGeneratingSimulation, setIsGeneratingSimulation] = useState(false);
   const [isGeneratingDevilsAdvocate, setIsGeneratingDevilsAdvocate] =
     useState(false);
+  const [isGeneratingRedditScout, setIsGeneratingRedditScout] = useState(false);
 
   const isActionPlanReady =
     !!decisionContext?.finalChoice && !!decisionContext?.reasoning;
@@ -134,6 +138,31 @@ const DecisionReport: React.FC<DecisionReportProps> = ({
       console.error("Failed to generate devil's advocate:", error);
     } finally {
       setIsGeneratingDevilsAdvocate(false);
+    }
+  };
+
+  const handleRedditScoutClick = async () => {
+    if (decisionContext?.redditScout) {
+      return;
+    }
+
+    if (!decisionContext) return;
+
+    setIsGeneratingRedditScout(true);
+
+    try {
+      await generateRedditScout({
+        decisionId,
+        decisionContext: {
+          finalChoice: decisionContext.finalChoice,
+          reasoning: decisionContext.reasoning,
+          options: decisionContext.options,
+        },
+      });
+    } catch (error) {
+      console.error("Failed to scout Reddit:", error);
+    } finally {
+      setIsGeneratingRedditScout(false);
     }
   };
 
@@ -231,7 +260,9 @@ const DecisionReport: React.FC<DecisionReportProps> = ({
 
     reportParts.push("## Options Analysis");
     options.forEach((option) => {
-      reportParts.push(`### ${option.name} (Score: ${option.score.toFixed(2)})`);
+      reportParts.push(
+        `### ${option.name} (Score: ${option.score.toFixed(2)})`
+      );
       reportParts.push("**Pros:**");
       option.pros.forEach((pro) => reportParts.push(`- ${pro}`));
       reportParts.push("**Cons:**");
@@ -258,7 +289,9 @@ const DecisionReport: React.FC<DecisionReportProps> = ({
   };
 
   const handleDownloadMarkdown = () => {
-    const blob = new Blob([generateMarkdownReport()], { type: "text/markdown" });
+    const blob = new Blob([generateMarkdownReport()], {
+      type: "text/markdown",
+    });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -424,11 +457,17 @@ const DecisionReport: React.FC<DecisionReportProps> = ({
       <div className="bg-gray-800/40 p-6 rounded-lg mb-8 print:bg-white print:border print:border-gray-300 print:text-black">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm text-gray-400 print:text-gray-600">Recommendation</p>
-            <p className="text-3xl font-bold text-white print:text-black">{finalChoice}</p>
+            <p className="text-sm text-gray-400 print:text-gray-600">
+              Recommendation
+            </p>
+            <p className="text-3xl font-bold text-white print:text-black">
+              {finalChoice}
+            </p>
           </div>
           <div className="text-center">
-            <p className="text-sm text-gray-400 print:text-gray-600">Confidence</p>
+            <p className="text-sm text-gray-400 print:text-gray-600">
+              Confidence
+            </p>
             <p className="text-3xl font-bold text-green-400 print:text-black">
               {(confidenceScore * 100).toFixed(0)}%
             </p>
@@ -443,7 +482,9 @@ const DecisionReport: React.FC<DecisionReportProps> = ({
         <div className="bg-red-950/30 border border-red-900/50 p-6 rounded-lg mb-8 animate-in fade-in slide-in-from-bottom-4 print:bg-white print:border-gray-300 print:text-black">
           <div className="flex items-center gap-2 mb-4">
             <Flame className="h-6 w-6 text-red-500 print:text-black" />
-            <h3 className="text-xl font-bold text-red-400 print:text-black">The Skeptic</h3>
+            <h3 className="text-xl font-bold text-red-400 print:text-black">
+              The Skeptic
+            </h3>
           </div>
           <div className="prose prose-invert max-w-none print:prose-gray">
             <p className="text-gray-300 italic border-l-4 border-red-500/50 pl-4 print:text-black print:border-gray-400">
@@ -477,9 +518,14 @@ const DecisionReport: React.FC<DecisionReportProps> = ({
         </h3>
         <div className="space-y-4">
           {options.map((option, index) => (
-            <div key={index} className="bg-gray-800/40 p-4 rounded-lg print:bg-white print:border print:border-gray-300 print:text-black print:break-inside-avoid">
+            <div
+              key={index}
+              className="bg-gray-800/40 p-4 rounded-lg print:bg-white print:border print:border-gray-300 print:text-black print:break-inside-avoid"
+            >
               <div className="flex justify-between items-center mb-3">
-                <p className="text-lg font-bold text-white print:text-black">{option.name}</p>
+                <p className="text-lg font-bold text-white print:text-black">
+                  {option.name}
+                </p>
                 <p className="text-md font-semibold text-purple-300 print:text-black">
                   Score: {option.score.toFixed(2)}
                 </p>
@@ -487,7 +533,9 @@ const DecisionReport: React.FC<DecisionReportProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Pros */}
                 <div>
-                  <h4 className="font-semibold text-green-400 mb-2 print:text-black">Pros</h4>
+                  <h4 className="font-semibold text-green-400 mb-2 print:text-black">
+                    Pros
+                  </h4>
                   <ul className="space-y-1">
                     {option.pros.map((pro, i) => (
                       <li key={i} className="flex items-start gap-2 text-sm">
@@ -499,7 +547,9 @@ const DecisionReport: React.FC<DecisionReportProps> = ({
                 </div>
                 {/* Cons */}
                 <div>
-                  <h4 className="font-semibold text-red-400 mb-2 print:text-black">Cons</h4>
+                  <h4 className="font-semibold text-red-400 mb-2 print:text-black">
+                    Cons
+                  </h4>
                   <ul className="space-y-1">
                     {option.cons.map((con, i) => (
                       <li key={i} className="flex items-start gap-2 text-sm">
@@ -524,7 +574,9 @@ const DecisionReport: React.FC<DecisionReportProps> = ({
                 <AlertTriangle className="h-5 w-5" />
                 <h3 className="font-semibold">Primary Risk</h3>
               </div>
-              <p className="text-sm text-gray-300 print:text-black">{primaryRisk}</p>
+              <p className="text-sm text-gray-300 print:text-black">
+                {primaryRisk}
+              </p>
             </div>
           )}
           {hiddenOpportunity && (
@@ -533,11 +585,73 @@ const DecisionReport: React.FC<DecisionReportProps> = ({
                 <Lightbulb className="h-5 w-5" />
                 <h3 className="font-semibold">Hidden Opportunity</h3>
               </div>
-              <p className="text-sm text-gray-300 print:text-black">{hiddenOpportunity}</p>
+              <p className="text-sm text-gray-300 print:text-black">
+                {hiddenOpportunity}
+              </p>
             </div>
           )}
         </div>
       )}
+
+      {/* Reddit Scout Section */}
+      <div className="mt-8 print:break-inside-avoid">
+        {!decisionContext.redditScout ? (
+          <Button
+            variant="outline"
+            onClick={handleRedditScoutClick}
+            disabled={isGeneratingRedditScout}
+            className="w-full border-orange-500/30 text-orange-400 hover:bg-orange-500/10 hover:text-orange-300"
+          >
+            {isGeneratingRedditScout ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <MessageCircle className="h-4 w-4 mr-2" />
+            )}
+            {isGeneratingRedditScout
+              ? "Scouting Reddit..."
+              : "What does Reddit say?"}
+          </Button>
+        ) : (
+          <div className="bg-orange-950/30 border border-orange-900/50 p-6 rounded-lg animate-in fade-in slide-in-from-bottom-4 print:bg-white print:border-gray-300 print:text-black">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <MessageCircle className="h-6 w-6 text-orange-500 print:text-black" />
+                <h3 className="text-xl font-bold text-orange-400 print:text-black">
+                  The Internet's Verdict
+                </h3>
+              </div>
+              <a
+                href={decisionContext.redditScout.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-orange-400/70 hover:text-orange-400 flex items-center gap-1 print:hidden"
+              >
+                View Thread <ExternalLink className="h-3 w-3" />
+              </a>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <h4 className="text-xs font-semibold text-orange-500/80 uppercase tracking-wider mb-1 print:text-black">
+                  Consensus
+                </h4>
+                <p className="text-gray-300 print:text-black">
+                  {decisionContext.redditScout.consensus}
+                </p>
+              </div>
+
+              <div className="bg-black/20 p-4 rounded border-l-2 border-orange-500/50 print:bg-gray-100 print:border-gray-400">
+                <h4 className="text-xs font-semibold text-orange-500/80 uppercase tracking-wider mb-1 print:text-black">
+                  Top Vibe
+                </h4>
+                <p className="text-gray-300 italic print:text-black">
+                  "{decisionContext.redditScout.topComment}"
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
 
       <style jsx global>{`
         @media print {
@@ -545,9 +659,12 @@ const DecisionReport: React.FC<DecisionReportProps> = ({
           body * {
             visibility: hidden;
           }
-          
+
           /* Reset constraints on main containers to prevent clipping */
-          html, body, #root, main {
+          html,
+          body,
+          #root,
+          main {
             overflow: visible !important;
             height: auto !important;
             margin: 0 !important;

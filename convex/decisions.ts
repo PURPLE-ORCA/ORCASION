@@ -248,3 +248,21 @@ export const deleteDecision = mutation({
     return { success: true };
   },
 });
+
+export const saveSimulation = mutation({
+  args: {
+    decisionId: v.id("decisions"),
+    simulation: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    const decisionContext = await ctx.db
+      .query("decision_context")
+      .withIndex("by_decisionId", (q) => q.eq("decisionId", args.decisionId))
+      .unique();
+
+    if (decisionContext) {
+      await ctx.db.patch(decisionContext._id, { simulation: args.simulation });
+    }
+  },
+});

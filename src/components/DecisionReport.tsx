@@ -5,25 +5,40 @@ import { useQuery, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
-import { X, CheckCircle2, XCircle, Copy, Rocket, ArrowRight, AlertTriangle, Lightbulb } from "lucide-react";
+import {
+  X,
+  CheckCircle2,
+  XCircle,
+  Copy,
+  Rocket,
+  ArrowRight,
+  AlertTriangle,
+  Lightbulb,
+  FastForward,
+} from "lucide-react";
 import { Separator } from "./ui/separator";
 
 interface DecisionReportProps {
   decisionId: Id<"decisions">;
   onClose: () => void;
   onSwitchToActionPlan: () => void;
+  onSwitchToSimulation: () => void;
 }
 
 const DecisionReport: React.FC<DecisionReportProps> = ({
   decisionId,
   onClose,
   onSwitchToActionPlan,
+  onSwitchToSimulation,
 }) => {
   const decisionContext = useQuery(api.decision_context.getDecisionContext, {
     decisionId,
   });
   const generateActionPlan = useAction(api.decision_context.generateActionPlan);
+  const generateSimulation = useAction(api.ai.generateSimulation);
+
   const [isLoadingPlan, setIsLoadingPlan] = useState(false);
+  const [isGeneratingSimulation, setIsGeneratingSimulation] = useState(false);
 
   const isActionPlanReady =
     !!decisionContext?.finalChoice && !!decisionContext?.reasoning;
@@ -35,20 +50,47 @@ const DecisionReport: React.FC<DecisionReportProps> = ({
     }
 
     if (!isActionPlanReady) {
-      // Optionally, show a message to the user that the report is not ready
-      console.log("Decision context is not ready for generating an action plan.");
+      console.log(
+        "Decision context is not ready for generating an action plan."
+      );
       return;
     }
 
     setIsLoadingPlan(true);
     try {
       await generateActionPlan({ decisionId });
-      onSwitchToActionPlan(); // Switch view after successful generation
+      onSwitchToActionPlan();
     } catch (error) {
       console.error("Failed to generate action plan:", error);
-      // Optionally, show an error to the user
     } finally {
       setIsLoadingPlan(false);
+    }
+  };
+
+  const handleSimulationClick = async () => {
+    if (decisionContext?.simulation) {
+      onSwitchToSimulation();
+      return;
+    }
+
+    if (!decisionContext) return;
+
+    setIsGeneratingSimulation(true);
+
+    try {
+      await generateSimulation({
+        decisionId,
+        decisionContext: {
+          finalChoice: decisionContext.finalChoice,
+          reasoning: decisionContext.reasoning,
+          options: decisionContext.options,
+        },
+      });
+      onSwitchToSimulation();
+    } catch (error) {
+      console.error("Failed to generate simulation:", error);
+    } finally {
+      setIsGeneratingSimulation(false);
     }
   };
 
@@ -60,14 +102,19 @@ const DecisionReport: React.FC<DecisionReportProps> = ({
     );
   }
 
-  const { finalChoice, confidenceScore, reasoning, options, criteria, actionPlan, primaryRisk, hiddenOpportunity } =
-    decisionContext;
+  const {
+    finalChoice,
+    confidenceScore,
+    reasoning,
+    options,
+    criteria,
+    actionPlan,
+    primaryRisk,
+    hiddenOpportunity,
+  } = decisionContext;
 
   const handleCopy = () => {
     if (!decisionContext) return;
-
-    const { finalChoice, confidenceScore, reasoning, options, criteria, actionPlan, primaryRisk, hiddenOpportunity } =
-      decisionContext;
 
     const reportParts = [
       "DECISION BRIEFING",
@@ -78,20 +125,18 @@ const DecisionReport: React.FC<DecisionReportProps> = ({
     ];
 
     if (primaryRisk) {
-        reportParts.push(`\nPrimary Risk: ${primaryRisk}`);
+      reportParts.push(`\nPrimary Risk: ${primaryRisk}`);
     }
     if (hiddenOpportunity) {
-        reportParts.push(`Hidden Opportunity: ${hiddenOpportunity}`);
+      reportParts.push(`Hidden Opportunity: ${hiddenOpportunity}`);
     }
 
     reportParts.push(
       "\nYOUR PRIORITIES",
       "--------------------",
-      ...criteria.map(
-        (c) => `${c.name} - ${(c.weight * 100).toFixed(0)}%`
-      ),
+      ...criteria.map((c) => `${c.name} - ${(c.weight * 100).toFixed(0)}%`),
       "\nOPTIONS ANALYSIS",
-      "--------------------",
+      "--------------------"
     );
 
     options.forEach((option) => {
@@ -105,13 +150,14 @@ const DecisionReport: React.FC<DecisionReportProps> = ({
     });
 
     if (actionPlan && actionPlan.length > 0) {
-        reportParts.push("\nACTION PLAN", "--------------------");
-        reportParts.push(...actionPlan.map((step, index) => `${index + 1}. ${step}`));
+      reportParts.push("\nACTION PLAN", "--------------------");
+      reportParts.push(
+        ...actionPlan.map((step, index) => `${index + 1}. ${step}`)
+      );
     }
 
     const fullReportText = reportParts.join("\n");
     navigator.clipboard.writeText(fullReportText);
-    // Consider adding a toast notification for better UX
   };
 
   const hasActionPlan = actionPlan && actionPlan.length > 0;
@@ -126,6 +172,20 @@ const DecisionReport: React.FC<DecisionReportProps> = ({
           Decision Briefing
         </h2>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleSimulationClick}
+            className="border-purple-500/50 text-purple-300 hover:bg-purple-500/10 hover:text-purple-200"
+            disabled={isGeneratingSimulation}
+          >
+            {isGeneratingSimulation ? (
+              <div className="w-4 h-4 border-2 border-purple-400 border-t-transparent rounded-full animate-spin mr-2"></div>
+            ) : (
+              <FastForward className="h-4 w-4 mr-2" />
+            )}
+            {isGeneratingSimulation ? "Simulating..." : "Fast Forward"}
+          </Button>
           <Button
             variant="outline"
             size="sm"

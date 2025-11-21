@@ -423,3 +423,71 @@ Based on the updated criteria and the previous conversation, output a JSON objec
     }
   },
 });
+
+export const generateSimulation = action({
+  args: {
+    decisionId: v.id("decisions"),
+    decisionContext: v.object({
+      finalChoice: v.string(),
+      reasoning: v.string(),
+      options: v.array(
+        v.object({
+          name: v.string(),
+          pros: v.array(v.string()),
+          cons: v.array(v.string()),
+          score: v.float64(),
+        })
+      ),
+    }),
+  },
+  handler: async (ctx, args) => {
+    const { decisionContext } = args;
+    const { finalChoice, reasoning, options } = decisionContext;
+
+    // Find the selected option details
+    const selectedOption = options.find((o) => o.name === finalChoice);
+    const pros = selectedOption ? selectedOption.pros.join(", ") : "";
+    const cons = selectedOption ? selectedOption.cons.join(", ") : "";
+
+    const systemPrompt = `You are a futuristic simulator. Your job is to transport the user 6 months into the future.
+    
+    The user has just made a decision: "${finalChoice}".
+    Reasoning: ${reasoning}
+    Pros: ${pros}
+    Cons: ${cons}
+
+    Write a vivid, second-person narrative ("You wake up...") describing a specific day in their life 6 months from now.
+    
+    Guidelines:
+    1.  **Be Visceral:** Focus on sensory details—what they see, feel, and hear.
+    2.  **Be Balanced:** Show both the benefits (the "Pros" coming true) and the subtle costs or annoyances (the "Cons" manifesting).
+    3.  **No Fluff:** Do not summarize the decision. Start directly with the scene.
+    4.  **Length:** Keep it under 300 words.
+    5.  **Tone:** Immersive, slightly cinematic, but grounded in reality.
+
+    Output ONLY the markdown text of the narrative.`;
+
+    const model = genAI.getGenerativeModel({
+      model: MODEL_NAME,
+      systemInstruction: systemPrompt,
+    });
+
+    try {
+      const result = await model.generateContent(
+        `Simulate the future for the choice: ${finalChoice}`
+      );
+      const simulationText = result.response.text().trim();
+
+      if (simulationText) {
+        await ctx.runMutation(api.decisions.saveSimulation, {
+          decisionId: args.decisionId,
+          simulation: simulationText,
+        });
+        return simulationText;
+      }
+    } catch (error) {
+      console.error("Error generating simulation:", error);
+      throw new Error("Failed to generate simulation");
+    }
+  },
+});

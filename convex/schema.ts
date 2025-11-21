@@ -62,5 +62,6 @@ export default defineSchema({
     modelUsed: v.optional(
       v.union(v.literal("gemini-2.0-flash"), v.literal("gemini-2.5-flash"))
     ),
+    simulation: v.optional(v.string()),
   }).index("by_decisionId", ["decisionId"]),
 });

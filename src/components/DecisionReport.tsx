@@ -15,6 +15,7 @@ import {
   AlertTriangle,
   Lightbulb,
   FastForward,
+  Flame,
 } from "lucide-react";
 import { Separator } from "./ui/separator";
 
@@ -36,9 +37,12 @@ const DecisionReport: React.FC<DecisionReportProps> = ({
   });
   const generateActionPlan = useAction(api.decision_context.generateActionPlan);
   const generateSimulation = useAction(api.ai.generateSimulation);
+  const generateDevilsAdvocate = useAction(api.ai.generateDevilsAdvocate);
 
   const [isLoadingPlan, setIsLoadingPlan] = useState(false);
   const [isGeneratingSimulation, setIsGeneratingSimulation] = useState(false);
+  const [isGeneratingDevilsAdvocate, setIsGeneratingDevilsAdvocate] =
+    useState(false);
 
   const isActionPlanReady =
     !!decisionContext?.finalChoice && !!decisionContext?.reasoning;
@@ -91,6 +95,33 @@ const DecisionReport: React.FC<DecisionReportProps> = ({
       console.error("Failed to generate simulation:", error);
     } finally {
       setIsGeneratingSimulation(false);
+    }
+  };
+
+  const handleDevilsAdvocateClick = async () => {
+    if (decisionContext?.devilsAdvocate) {
+      // Scroll to section? Or just toggle?
+      // For now, we assume it's already visible if it exists.
+      return;
+    }
+
+    if (!decisionContext) return;
+
+    setIsGeneratingDevilsAdvocate(true);
+
+    try {
+      await generateDevilsAdvocate({
+        decisionId,
+        decisionContext: {
+          finalChoice: decisionContext.finalChoice,
+          reasoning: decisionContext.reasoning,
+          options: decisionContext.options,
+        },
+      });
+    } catch (error) {
+      console.error("Failed to generate devil's advocate:", error);
+    } finally {
+      setIsGeneratingDevilsAdvocate(false);
     }
   };
 
@@ -175,6 +206,22 @@ const DecisionReport: React.FC<DecisionReportProps> = ({
           <Button
             variant="outline"
             size="sm"
+            onClick={handleDevilsAdvocateClick}
+            className="border-red-500/50 text-red-300 hover:bg-red-500/10 hover:text-red-200"
+            disabled={
+              isGeneratingDevilsAdvocate || !!decisionContext?.devilsAdvocate
+            }
+          >
+            {isGeneratingDevilsAdvocate ? (
+              <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin mr-2"></div>
+            ) : (
+              <Flame className="h-4 w-4 mr-2" />
+            )}
+            {isGeneratingDevilsAdvocate ? "Thinking..." : "Challenge This"}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={handleSimulationClick}
             className="border-purple-500/50 text-purple-300 hover:bg-purple-500/10 hover:text-purple-200"
             disabled={isGeneratingSimulation}
@@ -231,6 +278,21 @@ const DecisionReport: React.FC<DecisionReportProps> = ({
         <Separator className="my-4 bg-gray-700" />
         <p className="text-gray-300">{reasoning}</p>
       </div>
+
+      {/* Devil's Advocate Section */}
+      {decisionContext.devilsAdvocate && (
+        <div className="bg-red-950/30 border border-red-900/50 p-6 rounded-lg mb-8 animate-in fade-in slide-in-from-bottom-4">
+          <div className="flex items-center gap-2 mb-4">
+            <Flame className="h-6 w-6 text-red-500" />
+            <h3 className="text-xl font-bold text-red-400">The Skeptic</h3>
+          </div>
+          <div className="prose prose-invert max-w-none">
+            <p className="text-gray-300 italic border-l-4 border-red-500/50 pl-4">
+              {decisionContext.devilsAdvocate}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Your Priorities */}
       <div className="mb-8">

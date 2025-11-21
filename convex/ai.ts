@@ -491,3 +491,67 @@ export const generateSimulation = action({
     }
   },
 });
+
+export const generateDevilsAdvocate = action({
+  args: {
+    decisionId: v.id("decisions"),
+    decisionContext: v.object({
+      finalChoice: v.string(),
+      reasoning: v.string(),
+      options: v.array(
+        v.object({
+          name: v.string(),
+          pros: v.array(v.string()),
+          cons: v.array(v.string()),
+          score: v.float64(),
+        })
+      ),
+    }),
+  },
+  handler: async (ctx, args) => {
+    const { decisionContext } = args;
+    const { finalChoice, reasoning, options } = decisionContext;
+
+    const selectedOption = options.find((o) => o.name === finalChoice);
+    const pros = selectedOption ? selectedOption.pros.join(", ") : "";
+    const cons = selectedOption ? selectedOption.cons.join(", ") : "";
+
+    const systemPrompt = `You are The Skeptic, a professional Devil's Advocate. Your job is to challenge the user's decision to ensure they aren't falling for confirmation bias.
+
+    The user has decided: "${finalChoice}".
+    Their Reasoning: ${reasoning}
+    Pros: ${pros}
+    Cons: ${cons}
+
+    Write a concise, punchy counter-argument (max 150 words).
+    - Don't be rude, but be sharp and critical.
+    - Point out what they might be missing.
+    - Highlight why the "Cons" might be worse than they think.
+    - Ask a hard question at the end.
+
+    Output ONLY the markdown text of the argument.`;
+
+    const model = genAI.getGenerativeModel({
+      model: MODEL_NAME,
+      systemInstruction: systemPrompt,
+    });
+
+    try {
+      const result = await model.generateContent(
+        `Challenge my decision to choose: ${finalChoice}`
+      );
+      const devilsAdvocateText = result.response.text().trim();
+
+      if (devilsAdvocateText) {
+        await ctx.runMutation(api.decisions.saveDevilsAdvocate, {
+          decisionId: args.decisionId,
+          devilsAdvocate: devilsAdvocateText,
+        });
+        return devilsAdvocateText;
+      }
+    } catch (error) {
+      console.error("Error generating devil's advocate:", error);
+      throw new Error("Failed to generate devil's advocate argument");
+    }
+  },
+});

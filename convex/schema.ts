@@ -58,7 +58,18 @@ export default defineSchema({
     confidenceScore: v.float64(),
     primaryRisk: v.optional(v.string()),
     hiddenOpportunity: v.optional(v.string()),
-    actionPlan: v.optional(v.array(v.string())),
+    actionPlan: v.optional(
+      v.array(
+        v.union(
+          v.string(), // Old format (for migration)
+          v.object({
+            text: v.string(),
+            completed: v.boolean(),
+            completedAt: v.optional(v.number()),
+          })
+        )
+      )
+    ),
     modelUsed: v.optional(
       v.union(v.literal("gemini-2.0-flash"), v.literal("gemini-2.5-flash"))
     ),

@@ -354,3 +354,40 @@ export const saveRedditScout = mutation({
     });
   },
 });
+
+export const toggleActionItem = mutation({
+  args: {
+    decisionId: v.id("decisions"),
+    itemIndex: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const decisionContext = await ctx.db
+      .query("decision_context")
+      .withIndex("by_decisionId", (q) => q.eq("decisionId", args.decisionId))
+      .first();
+
+    if (!decisionContext || !decisionContext.actionPlan) {
+      throw new Error("Action plan not found");
+    }
+
+    const updatedPlan = [...decisionContext.actionPlan];
+    const item = updatedPlan[args.itemIndex];
+
+    // Type guard: if item is a string (old format), throw error
+    if (typeof item === "string") {
+      throw new Error(
+        "Action plan is in old format. Please regenerate the action plan."
+      );
+    }
+
+    updatedPlan[args.itemIndex] = {
+      ...item,
+      completed: !item.completed,
+      completedAt: !item.completed ? Date.now() : undefined,
+    };
+
+    await ctx.db.patch(decisionContext._id, {
+      actionPlan: updatedPlan,
+    });
+  },
+});

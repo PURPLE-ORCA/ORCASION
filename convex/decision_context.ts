@@ -28,12 +28,21 @@ export const generateActionPlan = action({
     decisionId: v.id("decisions"),
   },
   handler: async (ctx, args) => {
-    const decisionContext = await ctx.runQuery(api.decision_context.getDecisionContext, {
-      decisionId: args.decisionId,
-    });
+    const decisionContext = await ctx.runQuery(
+      api.decision_context.getDecisionContext,
+      {
+        decisionId: args.decisionId,
+      }
+    );
 
-    if (!decisionContext || !decisionContext.finalChoice || !decisionContext.reasoning) {
-      throw new Error("Decision context, final choice, or reasoning not found.");
+    if (
+      !decisionContext ||
+      !decisionContext.finalChoice ||
+      !decisionContext.reasoning
+    ) {
+      throw new Error(
+        "Decision context, final choice, or reasoning not found."
+      );
     }
 
     const systemPrompt = conciergePrompt
@@ -46,22 +55,39 @@ export const generateActionPlan = action({
     });
 
     try {
-      const result = await model.generateContent("Generate the action plan now.");
-      const text = result.response.text().replace("```json", "").replace("```", "").trim();
+      const result = await model.generateContent(
+        "Generate the action plan now."
+      );
+      const text = result.response
+        .text()
+        .replace("```json", "")
+        .replace("```", "")
+        .trim();
       const parsedResponse = JSON.parse(text);
-      
-      if (!parsedResponse || typeof parsedResponse !== "object" || !("actionPlan" in parsedResponse)) {
+
+      if (
+        !parsedResponse ||
+        typeof parsedResponse !== "object" ||
+        !("actionPlan" in parsedResponse)
+      ) {
         throw new Error("Invalid AI response for action plan generation.");
       }
 
       const { actionPlan } = parsedResponse as { actionPlan: string[] };
 
+      // Convert to new format with completion tracking
+      const actionPlanItems = actionPlan.map((step) => ({
+        text: step,
+        completed: false,
+        completedAt: undefined,
+      }));
+
       await ctx.runMutation(api.decision_context.updateActionPlan, {
         decisionId: args.decisionId,
-        actionPlan,
+        actionPlan: actionPlanItems,
       });
 
-      return actionPlan;
+      return actionPlanItems;
     } catch (error: any) {
       console.error("Error generating action plan:", error);
       throw new Error(`Failed to generate action plan: ${error.message}`);
@@ -72,7 +98,13 @@ export const generateActionPlan = action({
 export const updateActionPlan = mutation({
   args: {
     decisionId: v.id("decisions"),
-    actionPlan: v.array(v.string()),
+    actionPlan: v.array(
+      v.object({
+        text: v.string(),
+        completed: v.boolean(),
+        completedAt: v.optional(v.number()),
+      })
+    ),
   },
   handler: async (ctx, args) => {
     const decisionContext = await ctx.db
@@ -108,10 +140,7 @@ export const updateDecisionContext = mutation({
     primaryRisk: v.optional(v.string()),
     hiddenOpportunity: v.optional(v.string()),
     modelUsed: v.optional(
-      v.union(
-        v.literal("gemini-2.0-flash"),
-        v.literal("gemini-2.5-flash")
-      )
+      v.union(v.literal("gemini-2.0-flash"), v.literal("gemini-2.5-flash"))
     ),
   },
   handler: async (ctx, args) => {

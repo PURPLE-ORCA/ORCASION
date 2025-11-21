@@ -18,8 +18,16 @@ import {
   Flame,
   Scroll,
   Loader2,
+  Sparkles,
+  Download,
 } from "lucide-react";
 import { Separator } from "./ui/separator";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface DecisionReportProps {
   decisionId: Id<"decisions">;
@@ -148,8 +156,8 @@ const DecisionReport: React.FC<DecisionReportProps> = ({
     hiddenOpportunity,
   } = decisionContext;
 
-  const handleCopy = () => {
-    if (!decisionContext) return;
+  const generateReportText = () => {
+    if (!decisionContext) return "";
 
     const reportParts = [
       "DECISION BRIEFING",
@@ -191,8 +199,78 @@ const DecisionReport: React.FC<DecisionReportProps> = ({
       );
     }
 
-    const fullReportText = reportParts.join("\n");
-    navigator.clipboard.writeText(fullReportText);
+    return reportParts.join("\n");
+  };
+
+  const generateMarkdownReport = () => {
+    if (!decisionContext) return "";
+
+    const reportParts = [
+      "# Decision Briefing",
+      "",
+      `**Recommendation:** ${finalChoice}`,
+      `**Confidence:** ${(confidenceScore * 100).toFixed(0)}%`,
+      "",
+      "## Reasoning",
+      reasoning,
+      "",
+    ];
+
+    if (primaryRisk) {
+      reportParts.push(`**Primary Risk:** ${primaryRisk}`, "");
+    }
+    if (hiddenOpportunity) {
+      reportParts.push(`**Hidden Opportunity:** ${hiddenOpportunity}`, "");
+    }
+
+    reportParts.push("## Your Priorities");
+    criteria.forEach((c) => {
+      reportParts.push(`- **${c.name}**: ${(c.weight * 100).toFixed(0)}%`);
+    });
+    reportParts.push("");
+
+    reportParts.push("## Options Analysis");
+    options.forEach((option) => {
+      reportParts.push(`### ${option.name} (Score: ${option.score.toFixed(2)})`);
+      reportParts.push("**Pros:**");
+      option.pros.forEach((pro) => reportParts.push(`- ${pro}`));
+      reportParts.push("**Cons:**");
+      option.cons.forEach((con) => reportParts.push(`- ${con}`));
+      reportParts.push("");
+    });
+
+    if (actionPlan && actionPlan.length > 0) {
+      reportParts.push("## Action Plan");
+      actionPlan.forEach((step, index) => {
+        reportParts.push(`${index + 1}. ${step}`);
+      });
+    }
+
+    return reportParts.join("\n");
+  };
+
+  const handleCopyText = () => {
+    navigator.clipboard.writeText(generateReportText());
+  };
+
+  const handleCopyMarkdown = () => {
+    navigator.clipboard.writeText(generateMarkdownReport());
+  };
+
+  const handleDownloadMarkdown = () => {
+    const blob = new Blob([generateMarkdownReport()], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `decision-report-${decisionId}.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadPDF = () => {
+    window.print();
   };
 
   const hasActionPlan = actionPlan && actionPlan.length > 0;
@@ -200,9 +278,12 @@ const DecisionReport: React.FC<DecisionReportProps> = ({
     isLoadingPlan || (!hasActionPlan && !isActionPlanReady);
 
   return (
-    <div className="bg-card text-gray-200 w-full h-full overflow-y-auto hide-scrollbar p-6">
+    <div
+      id="printable-report"
+      className="bg-card text-gray-200 w-full h-full overflow-y-auto hide-scrollbar p-6 print:bg-white print:text-black print:overflow-visible print:h-auto"
+    >
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6 print:hidden">
         <h2 className="text-2xl font-bold text-purple-400">
           Decision Briefing
         </h2>
@@ -210,47 +291,9 @@ const DecisionReport: React.FC<DecisionReportProps> = ({
           <Button
             variant="outline"
             size="sm"
-            onClick={handleDevilsAdvocateClick}
-            className="border-red-500/50 text-red-300 hover:bg-red-500/10 hover:text-red-200"
-            disabled={
-              isGeneratingDevilsAdvocate || !!decisionContext?.devilsAdvocate
-            }
-          >
-            {isGeneratingDevilsAdvocate ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <Flame className="h-4 w-4 mr-2" />
-            )}
-            {isGeneratingDevilsAdvocate ? "Thinking..." : "Challenge This"}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleSimulationClick}
-            className="border-purple-500/50 text-purple-300 hover:bg-purple-500/10 hover:text-purple-200"
-            disabled={isGeneratingSimulation}
-          >
-            {isGeneratingSimulation ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <FastForward className="h-4 w-4 mr-2" />
-            )}
-            {isGeneratingSimulation ? "Simulating..." : "Fast Forward"}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onSwitchToContract}
-            className="border-amber-500/50 text-amber-300 hover:bg-amber-500/10 hover:text-amber-200"
-          >
-            <Scroll className="h-4 w-4 mr-2" />
-            Commit
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
             onClick={handleActionPlanClick}
             disabled={isButtonDisabled}
+            className="mr-2"
           >
             {isLoadingPlan ? (
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -265,9 +308,112 @@ const DecisionReport: React.FC<DecisionReportProps> = ({
               ? "View Action Plan"
               : "Generate Action Plan"}
           </Button>
-          <Button variant="ghost" size="icon" onClick={handleCopy}>
-            <Copy className="h-5 w-5" />
-          </Button>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                className="text-purple-400 border-purple-400/30 hover:bg-purple-400/10"
+              >
+                {isGeneratingDevilsAdvocate || isGeneratingSimulation ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4" />
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              className="w-56 bg-gray-900 border-gray-800 text-gray-200"
+            >
+              <DropdownMenuItem
+                onClick={handleDevilsAdvocateClick}
+                disabled={
+                  isGeneratingDevilsAdvocate ||
+                  !!decisionContext?.devilsAdvocate
+                }
+                className="cursor-pointer focus:bg-gray-800 focus:text-gray-100"
+              >
+                {isGeneratingDevilsAdvocate ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Flame className="h-4 w-4 mr-2 text-red-400" />
+                )}
+                <span>Challenge This</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={handleSimulationClick}
+                disabled={isGeneratingSimulation}
+                className="cursor-pointer focus:bg-gray-800 focus:text-gray-100"
+              >
+                {isGeneratingSimulation ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <FastForward className="h-4 w-4 mr-2 text-purple-400" />
+                )}
+                <span>Fast Forward</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={onSwitchToContract}
+                className="cursor-pointer focus:bg-gray-800 focus:text-gray-100"
+              >
+                <Scroll className="h-4 w-4 mr-2 text-amber-400" />
+                <span>Commit</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <Download className="h-5 w-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              className="w-48 bg-gray-900 border-gray-800 text-gray-200"
+            >
+              <DropdownMenuItem
+                onClick={handleDownloadMarkdown}
+                className="cursor-pointer focus:bg-gray-800 focus:text-gray-100"
+              >
+                Download MD
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={handleDownloadPDF}
+                className="cursor-pointer focus:bg-gray-800 focus:text-gray-100"
+              >
+                Download PDF
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <Copy className="h-5 w-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              className="w-48 bg-gray-900 border-gray-800 text-gray-200"
+            >
+              <DropdownMenuItem
+                onClick={handleCopyMarkdown}
+                className="cursor-pointer focus:bg-gray-800 focus:text-gray-100"
+              >
+                Copy MD
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={handleCopyText}
+                className="cursor-pointer focus:bg-gray-800 focus:text-gray-100"
+              >
+                Copy Text
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           <Button variant="ghost" size="icon" onClick={onClose}>
             <X className="h-5 w-5" />
           </Button>
@@ -275,32 +421,32 @@ const DecisionReport: React.FC<DecisionReportProps> = ({
       </div>
 
       {/* Section 1: The Verdict */}
-      <div className="bg-gray-800/40 p-6 rounded-lg mb-8">
+      <div className="bg-gray-800/40 p-6 rounded-lg mb-8 print:bg-white print:border print:border-gray-300 print:text-black">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm text-gray-400">Recommendation</p>
-            <p className="text-3xl font-bold text-white">{finalChoice}</p>
+            <p className="text-sm text-gray-400 print:text-gray-600">Recommendation</p>
+            <p className="text-3xl font-bold text-white print:text-black">{finalChoice}</p>
           </div>
           <div className="text-center">
-            <p className="text-sm text-gray-400">Confidence</p>
-            <p className="text-3xl font-bold text-green-400">
+            <p className="text-sm text-gray-400 print:text-gray-600">Confidence</p>
+            <p className="text-3xl font-bold text-green-400 print:text-black">
               {(confidenceScore * 100).toFixed(0)}%
             </p>
           </div>
         </div>
-        <Separator className="my-4 bg-gray-700" />
-        <p className="text-gray-300">{reasoning}</p>
+        <Separator className="my-4 bg-gray-700 print:bg-gray-300" />
+        <p className="text-gray-300 print:text-black">{reasoning}</p>
       </div>
 
       {/* Devil's Advocate Section */}
       {decisionContext.devilsAdvocate && (
-        <div className="bg-red-950/30 border border-red-900/50 p-6 rounded-lg mb-8 animate-in fade-in slide-in-from-bottom-4">
+        <div className="bg-red-950/30 border border-red-900/50 p-6 rounded-lg mb-8 animate-in fade-in slide-in-from-bottom-4 print:bg-white print:border-gray-300 print:text-black">
           <div className="flex items-center gap-2 mb-4">
-            <Flame className="h-6 w-6 text-red-500" />
-            <h3 className="text-xl font-bold text-red-400">The Skeptic</h3>
+            <Flame className="h-6 w-6 text-red-500 print:text-black" />
+            <h3 className="text-xl font-bold text-red-400 print:text-black">The Skeptic</h3>
           </div>
-          <div className="prose prose-invert max-w-none">
-            <p className="text-gray-300 italic border-l-4 border-red-500/50 pl-4">
+          <div className="prose prose-invert max-w-none print:prose-gray">
+            <p className="text-gray-300 italic border-l-4 border-red-500/50 pl-4 print:text-black print:border-gray-400">
               {decisionContext.devilsAdvocate}
             </p>
           </div>
@@ -309,14 +455,14 @@ const DecisionReport: React.FC<DecisionReportProps> = ({
 
       {/* Your Priorities */}
       <div className="mb-8">
-        <h3 className="text-xl font-semibold mb-3 text-white">
+        <h3 className="text-xl font-semibold mb-3 text-white print:text-black">
           Your Priorities
         </h3>
         <div className="flex flex-wrap gap-2">
           {criteria.map((criterion, index) => (
             <div
               key={index}
-              className="bg-gray-700/50 text-gray-300 text-sm font-medium px-3 py-1 rounded-full"
+              className="bg-gray-700/50 text-gray-300 text-sm font-medium px-3 py-1 rounded-full print:bg-gray-100 print:text-black print:border print:border-gray-300"
             >
               {criterion.name} - {(criterion.weight * 100).toFixed(0)}%
             </div>
@@ -326,26 +472,26 @@ const DecisionReport: React.FC<DecisionReportProps> = ({
 
       {/* Section 3: Options Analysis */}
       <div>
-        <h3 className="text-xl font-semibold mb-4 text-white">
+        <h3 className="text-xl font-semibold mb-4 text-white print:text-black">
           Options Analysis
         </h3>
         <div className="space-y-4">
           {options.map((option, index) => (
-            <div key={index} className="bg-gray-800/40 p-4 rounded-lg">
+            <div key={index} className="bg-gray-800/40 p-4 rounded-lg print:bg-white print:border print:border-gray-300 print:text-black print:break-inside-avoid">
               <div className="flex justify-between items-center mb-3">
-                <p className="text-lg font-bold text-white">{option.name}</p>
-                <p className="text-md font-semibold text-purple-300">
+                <p className="text-lg font-bold text-white print:text-black">{option.name}</p>
+                <p className="text-md font-semibold text-purple-300 print:text-black">
                   Score: {option.score.toFixed(2)}
                 </p>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Pros */}
                 <div>
-                  <h4 className="font-semibold text-green-400 mb-2">Pros</h4>
+                  <h4 className="font-semibold text-green-400 mb-2 print:text-black">Pros</h4>
                   <ul className="space-y-1">
                     {option.pros.map((pro, i) => (
                       <li key={i} className="flex items-start gap-2 text-sm">
-                        <CheckCircle2 className="h-4 w-4 mt-0.5 text-green-500 shrink-0" />
+                        <CheckCircle2 className="h-4 w-4 mt-0.5 text-green-500 shrink-0 print:text-black" />
                         <span>{pro}</span>
                       </li>
                     ))}
@@ -353,11 +499,11 @@ const DecisionReport: React.FC<DecisionReportProps> = ({
                 </div>
                 {/* Cons */}
                 <div>
-                  <h4 className="font-semibold text-red-400 mb-2">Cons</h4>
+                  <h4 className="font-semibold text-red-400 mb-2 print:text-black">Cons</h4>
                   <ul className="space-y-1">
                     {option.cons.map((con, i) => (
                       <li key={i} className="flex items-start gap-2 text-sm">
-                        <XCircle className="h-4 w-4 mt-0.5 text-red-500 hrink-0" />
+                        <XCircle className="h-4 w-4 mt-0.5 text-red-500 shrink-0 print:text-black" />
                         <span>{con}</span>
                       </li>
                     ))}
@@ -371,27 +517,73 @@ const DecisionReport: React.FC<DecisionReportProps> = ({
 
       {/* Strategic Insights */}
       {(primaryRisk || hiddenOpportunity) && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8 print:break-inside-avoid">
           {primaryRisk && (
-            <div className="bg-red-900/20 border border-red-900/50 p-4 rounded-lg">
-              <div className="flex items-center gap-2 mb-2 text-red-400">
+            <div className="bg-red-900/20 border border-red-900/50 p-4 rounded-lg print:bg-white print:border-gray-300 print:text-black">
+              <div className="flex items-center gap-2 mb-2 text-red-400 print:text-black">
                 <AlertTriangle className="h-5 w-5" />
                 <h3 className="font-semibold">Primary Risk</h3>
               </div>
-              <p className="text-sm text-gray-300">{primaryRisk}</p>
+              <p className="text-sm text-gray-300 print:text-black">{primaryRisk}</p>
             </div>
           )}
           {hiddenOpportunity && (
-            <div className="bg-blue-900/20 border border-blue-900/50 p-4 rounded-lg">
-              <div className="flex items-center gap-2 mb-2 text-blue-400">
+            <div className="bg-blue-900/20 border border-blue-900/50 p-4 rounded-lg print:bg-white print:border-gray-300 print:text-black">
+              <div className="flex items-center gap-2 mb-2 text-blue-400 print:text-black">
                 <Lightbulb className="h-5 w-5" />
                 <h3 className="font-semibold">Hidden Opportunity</h3>
               </div>
-              <p className="text-sm text-gray-300">{hiddenOpportunity}</p>
+              <p className="text-sm text-gray-300 print:text-black">{hiddenOpportunity}</p>
             </div>
           )}
         </div>
       )}
+
+      <style jsx global>{`
+        @media print {
+          /* Hide everything by default */
+          body * {
+            visibility: hidden;
+          }
+          
+          /* Reset constraints on main containers to prevent clipping */
+          html, body, #root, main {
+            overflow: visible !important;
+            height: auto !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: white !important;
+            color: black !important;
+          }
+
+          /* Hide the print button and other UI explicitly */
+          .print\\:hidden {
+            display: none !important;
+          }
+
+          /* Show the report and its children */
+          #printable-report,
+          #printable-report * {
+            visibility: visible;
+          }
+
+          /* Position the report at the very top */
+          #printable-report {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            margin: 0;
+            padding: 20px; /* Add padding for paper margins */
+            background: white !important;
+            color: black !important;
+            box-shadow: none !important;
+            border: none !important;
+            overflow: visible !important;
+            height: auto !important;
+          }
+        }
+      `}</style>
     </div>
   );
 };

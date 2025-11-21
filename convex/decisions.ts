@@ -287,3 +287,45 @@ export const saveDevilsAdvocate = mutation({
     });
   },
 });
+
+export const saveCommitmentContract = mutation({
+  args: {
+    decisionId: v.id("decisions"),
+    commitmentContract: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const decisionContext = await ctx.db
+      .query("decision_context")
+      .withIndex("by_decisionId", (q) => q.eq("decisionId", args.decisionId))
+      .first();
+
+    if (!decisionContext) {
+      throw new Error("Decision context not found");
+    }
+
+    await ctx.db.patch(decisionContext._id, {
+      commitmentContract: args.commitmentContract,
+      isSigned: false,
+    });
+  },
+});
+
+export const signContract = mutation({
+  args: {
+    decisionId: v.id("decisions"),
+  },
+  handler: async (ctx, args) => {
+    const decisionContext = await ctx.db
+      .query("decision_context")
+      .withIndex("by_decisionId", (q) => q.eq("decisionId", args.decisionId))
+      .first();
+
+    if (!decisionContext) {
+      throw new Error("Decision context not found");
+    }
+
+    await ctx.db.patch(decisionContext._id, {
+      isSigned: true,
+    });
+  },
+});

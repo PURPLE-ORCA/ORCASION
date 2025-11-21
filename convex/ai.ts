@@ -555,3 +555,50 @@ export const generateDevilsAdvocate = action({
     }
   },
 });
+
+export const generateCommitmentContract = action({
+  args: {
+    decisionId: v.id("decisions"),
+    decisionContext: v.object({
+      finalChoice: v.string(),
+      reasoning: v.string(),
+      userName: v.string(),
+    }),
+  },
+  handler: async (ctx, args) => {
+    const model = new GoogleGenerativeAI(
+      process.env.GEMINI_API_KEY!
+    ).getGenerativeModel({
+      model: "gemini-2.0-flash",
+    });
+
+    const systemPrompt = `You are a lawyer who writes humorous but binding commitment contracts.
+    The user has made a decision and needs to "seal the deal" with themselves.
+    
+    User Name: ${args.decisionContext.userName}
+    Decision: ${args.decisionContext.finalChoice}
+    Reasoning: ${args.decisionContext.reasoning}
+
+    Write a contract in Markdown format with the following sections:
+    1.  **Title:** "The Solemn Accord of [User Name]"
+    2.  **Whereas Clauses:** 2-3 humorous "Whereas" clauses setting the context of the decision.
+    3.  **The Commitment:** A clear statement of what the user is committing to do.
+    4.  **The Terms:** 3-4 bullet points of specific behaviors or actions they promise to take to support this decision.
+    5.  **The Penalty:** A humorous but slightly stinging penalty if they break this contract (e.g., "Must listen to polka for 2 hours", "Must admit they were wrong to a smug friend").
+    6.  **Signature Line:** A place for them to sign (just text like "Signed: ____________________").
+
+    Tone: Official, legalistic, but funny and slightly dramatic.
+    Output ONLY the markdown text of the contract.`;
+
+    const result = await model.generateContent(systemPrompt);
+    const contractText = result.response.text().trim();
+
+    if (contractText) {
+      await ctx.runMutation(api.decisions.saveCommitmentContract, {
+        decisionId: args.decisionId,
+        commitmentContract: contractText,
+      });
+      return contractText;
+    }
+  },
+});

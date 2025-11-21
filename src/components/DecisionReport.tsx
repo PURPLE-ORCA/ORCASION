@@ -16,6 +16,8 @@ import {
   Lightbulb,
   FastForward,
   Flame,
+  Scroll,
+  Loader2,
 } from "lucide-react";
 import { Separator } from "./ui/separator";
 
@@ -24,6 +26,7 @@ interface DecisionReportProps {
   onClose: () => void;
   onSwitchToActionPlan: () => void;
   onSwitchToSimulation: () => void;
+  onSwitchToContract: () => void;
 }
 
 const DecisionReport: React.FC<DecisionReportProps> = ({
@@ -31,6 +34,7 @@ const DecisionReport: React.FC<DecisionReportProps> = ({
   onClose,
   onSwitchToActionPlan,
   onSwitchToSimulation,
+  onSwitchToContract,
 }) => {
   const decisionContext = useQuery(api.decision_context.getDecisionContext, {
     decisionId,
@@ -213,7 +217,7 @@ const DecisionReport: React.FC<DecisionReportProps> = ({
             }
           >
             {isGeneratingDevilsAdvocate ? (
-              <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin mr-2"></div>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
             ) : (
               <Flame className="h-4 w-4 mr-2" />
             )}
@@ -227,7 +231,7 @@ const DecisionReport: React.FC<DecisionReportProps> = ({
             disabled={isGeneratingSimulation}
           >
             {isGeneratingSimulation ? (
-              <div className="w-4 h-4 border-2 border-purple-400 border-t-transparent rounded-full animate-spin mr-2"></div>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
             ) : (
               <FastForward className="h-4 w-4 mr-2" />
             )}
@@ -236,11 +240,20 @@ const DecisionReport: React.FC<DecisionReportProps> = ({
           <Button
             variant="outline"
             size="sm"
+            onClick={onSwitchToContract}
+            className="border-amber-500/50 text-amber-300 hover:bg-amber-500/10 hover:text-amber-200"
+          >
+            <Scroll className="h-4 w-4 mr-2" />
+            Commit
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={handleActionPlanClick}
             disabled={isButtonDisabled}
           >
             {isLoadingPlan ? (
-              <div className="w-4 h-4 border-2 border-purple-400 border-t-transparent rounded-full animate-spin mr-2"></div>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
             ) : hasActionPlan ? (
               <ArrowRight className="h-4 w-4 mr-2" />
             ) : (

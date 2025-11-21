@@ -12,8 +12,9 @@ import Chat from "@/components/Chat";
 import DecisionReport from "@/components/DecisionReport";
 import ActionPlanView from "@/components/ActionPlanView";
 import SimulationView from "@/components/SimulationView";
+import ContractView from "@/components/ContractView";
 
-type ActiveView = "chat" | "report" | "actionPlan" | "simulation";
+type ActiveView = "chat" | "report" | "actionPlan" | "simulation" | "contract";
 
 export default function DecisionPage() {
   const params = useParams();
@@ -77,7 +78,8 @@ export default function DecisionPage() {
   const showPanel =
     activeView === "report" ||
     activeView === "actionPlan" ||
-    activeView === "simulation";
+    activeView === "simulation" ||
+    activeView === "contract";
 
   return (
     <AppLayout>
@@ -94,7 +96,7 @@ export default function DecisionPage() {
           />
         </div>
         <div
-          className={`transition-all duration-300 ease-in-out overflow-hidden ${
+          className={`transition-all duration-300 ease-in-out overflow-hidden border-l border-gray-800 bg-gray-900 ${
             showPanel ? "w-1/2 opacity-100" : "w-0 opacity-0"
           }`}
         >
@@ -104,6 +106,7 @@ export default function DecisionPage() {
               onClose={() => setActiveView("chat")}
               onSwitchToActionPlan={() => setActiveView("actionPlan")}
               onSwitchToSimulation={() => setActiveView("simulation")}
+              onSwitchToContract={() => setActiveView("contract")}
             />
           )}
           {activeView === "actionPlan" && (
@@ -118,6 +121,12 @@ export default function DecisionPage() {
               decisionId={decisionId}
               onClose={() => setActiveView("chat")}
               onSwitchToReport={() => setActiveView("report")}
+            />
+          )}
+          {activeView === "contract" && (
+            <ContractView
+              decisionId={decisionId}
+              onClose={() => setActiveView("report")}
             />
           )}
         </div>

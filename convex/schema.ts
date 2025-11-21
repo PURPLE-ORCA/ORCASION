@@ -64,5 +64,7 @@ export default defineSchema({
     ),
     simulation: v.optional(v.string()),
     devilsAdvocate: v.optional(v.string()),
+    commitmentContract: v.optional(v.string()),
+    isSigned: v.optional(v.boolean()),
   }).index("by_decisionId", ["decisionId"]),
 });

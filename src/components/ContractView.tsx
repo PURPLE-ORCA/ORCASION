@@ -3,10 +3,11 @@ import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, PenTool, Printer, Loader2, Check } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { ArrowLeft, PenTool, Printer, Loader2, Download } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import confetti from "canvas-confetti";
+import remarkGfm from "remark-gfm";
 
 interface ContractViewProps {
   decisionId: Id<"decisions">;
@@ -59,19 +60,47 @@ export default function ContractView({
     window.print();
   };
 
+  const handleDownload = () => {
+    if (!decisionContext?.commitmentContract) return;
+    const blob = new Blob([decisionContext.commitmentContract], {
+      type: "text/markdown",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `commitment-contract-${decisionId}.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   if (!decisionContext) return <div>Loading...</div>;
 
   return (
-    <div className="h-full flex flex-col bg-stone-50 p-6 overflow-y-auto">
+    <div className="h-full flex flex-col bg-stone-50 p-6 overflow-y-auto print:overflow-visible print:h-auto print:bg-white print:p-0">
       <div className="flex items-center justify-between mb-6 print:hidden">
         <Button variant="ghost" onClick={onClose} className="text-stone-600">
           <ArrowLeft className="h-4 w-4 mr-2" /> Back to Report
         </Button>
         <div className="flex gap-2">
           {decisionContext.commitmentContract && (
-            <Button variant="outline" onClick={handlePrint}>
-              <Printer className="h-4 w-4 mr-2" /> Print / Save PDF
-            </Button>
+            <>
+              <Button
+                variant="outline"
+                onClick={handleDownload}
+                className="text-black hover:text-black"
+              >
+                <Download className="h-4 w-4 mr-2 text-black" /> Download MD
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handlePrint}
+                className="text-black hover:text-black"
+              >
+                <Printer className="h-4 w-4 mr-2 text-black" /> Print / Save PDF
+              </Button>
+            </>
           )}
         </div>
       </div>
@@ -107,12 +136,63 @@ export default function ContractView({
           </div>
         </div>
       ) : (
-        <div className="max-w-3xl mx-auto w-full relative">
-          <Card className="border-4 border-double border-stone-300 bg-[#fdfbf7] shadow-xl print:shadow-none print:border-2 print:border-black">
-            <CardContent className="p-12 print:p-0">
-              <div className="prose prose-stone max-w-none font-serif text-stone-900 prose-headings:text-stone-900 prose-p:text-stone-800 prose-strong:text-stone-900 prose-li:text-stone-800">
-                <ReactMarkdown>
-                  {decisionContext.commitmentContract}
+        <div className="max-w-3xl mx-auto w-full relative print:static print:max-w-none print:w-full">
+          <Card
+            id="printable-contract"
+            className="border-4 border-double border-stone-300 bg-[#fdfbf7] shadow-xl print:shadow-none print:border-none"
+          >
+            <CardContent className="p-12 print:p-8">
+              <div className="w-full overflow-hidden print:overflow-visible">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    h1: ({ node, ...props }) => (
+                      <h1
+                        className="text-3xl font-bold font-serif text-stone-900 mb-4 mt-6 break-words"
+                        {...props}
+                      />
+                    ),
+                    h2: ({ node, ...props }) => (
+                      <h2
+                        className="text-2xl font-bold font-serif text-stone-900 mb-3 mt-5 break-words"
+                        {...props}
+                      />
+                    ),
+                    h3: ({ node, ...props }) => (
+                      <h3
+                        className="text-xl font-bold font-serif text-stone-900 mb-2 mt-4 break-words"
+                        {...props}
+                      />
+                    ),
+                    p: ({ node, ...props }) => (
+                      <p
+                        className="text-stone-800 mb-4 leading-relaxed font-serif text-lg break-words whitespace-pre-wrap"
+                        {...props}
+                      />
+                    ),
+                    ul: ({ node, ...props }) => (
+                      <ul
+                        className="list-disc pl-6 mb-4 text-stone-800 font-serif space-y-2"
+                        {...props}
+                      />
+                    ),
+                    ol: ({ node, ...props }) => (
+                      <ol
+                        className="list-decimal pl-6 mb-4 text-stone-800 font-serif space-y-2"
+                        {...props}
+                      />
+                    ),
+                    li: ({ node, ...props }) => (
+                      <li className="pl-1 break-words" {...props} />
+                    ),
+                    strong: ({ node, ...props }) => (
+                      <strong className="font-bold text-stone-900" {...props} />
+                    ),
+                  }}
+                >
+                  {decisionContext.commitmentContract
+                    ?.replace(/```markdown/g, "")
+                    .replace(/```/g, "")}
                 </ReactMarkdown>
               </div>
 
@@ -159,25 +239,44 @@ export default function ContractView({
 
       <style jsx global>{`
         @media print {
+          /* Hide everything by default */
           body * {
             visibility: hidden;
           }
+
+          /* Reset constraints on main containers to prevent clipping */
+          html,
+          body,
+          #root,
+          main {
+            overflow: visible !important;
+            height: auto !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+
+          /* Hide the print button and other UI explicitly */
           .print\\:hidden {
             display: none !important;
           }
-          .card,
-          .card * {
+
+          /* Show the contract and its children */
+          #printable-contract,
+          #printable-contract * {
             visibility: visible;
           }
-          .card {
+
+          /* Position the contract at the very top */
+          #printable-contract {
             position: absolute;
             left: 0;
             top: 0;
             width: 100%;
             margin: 0;
-            padding: 0;
-            box-shadow: none;
-            border: none;
+            padding: 20px; /* Add padding for paper margins */
+            background: white !important;
+            box-shadow: none !important;
+            border: none !important;
           }
         }
         @import url("https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Dancing+Script:wght@700&display=swap");

@@ -21,7 +21,7 @@ export function PlaceholdersAndVanishInput({
   const startAnimation = () => {
     intervalRef.current = setInterval(() => {
       setCurrentPlaceholder((prev) => (prev + 1) % placeholders.length);
-    }, 3000);
+    }, 8000);
   };
   const handleVisibilityChange = () => {
     if (document.visibilityState !== "visible" && intervalRef.current) {
@@ -204,7 +204,7 @@ export function PlaceholdersAndVanishInput({
         value={value}
         type="text"
         className={cn(
-          "w-full relative text-sm sm:text-base z-50 border-none text-white bg-transparent h-full rounded-full focus:outline-none focus:ring-0 pr-20",
+          "w-full relative text-sm sm:text-base z-10 border-none text-white bg-transparent h-full rounded-full focus:outline-none focus:ring-0 pr-20",
           onAttachClick ? "pl-12 sm:pl-14" : "pl-4 sm:pl-10",
           animating && "text-transparent dark:text-transparent"
         )}
@@ -215,7 +215,7 @@ export function PlaceholdersAndVanishInput({
         <button
           type="button"
           onClick={onAttachClick}
-          className="absolute left-2 top-1/2 z-50 -translate-y-1/2 h-8 w-8 rounded-full bg-gray-700/50 hover:bg-gray-600/70 transition duration-200 flex items-center justify-center"
+          className="absolute left-2 top-1/2 z-10 -translate-y-1/2 h-8 w-8 rounded-full bg-gray-700/50 hover:bg-gray-600/70 transition duration-200 flex items-center justify-center"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -237,7 +237,7 @@ export function PlaceholdersAndVanishInput({
       <button
         disabled={!value}
         type="submit"
-        className="absolute right-2 top-1/2 z-50 -translate-y-1/2 h-8 w-8 rounded-full disabled:bg-gray-700/50 bg-purple-600 hover:bg-purple-500 dark:bg-purple-600 dark:hover:bg-purple-500 dark:disabled:bg-gray-700/50 transition duration-200 flex items-center justify-center"
+        className="absolute right-2 top-1/2 z-10 -translate-y-1/2 h-8 w-8 rounded-full disabled:bg-gray-700/50 bg-purple-600 hover:bg-purple-500 dark:bg-purple-600 dark:hover:bg-purple-500 dark:disabled:bg-gray-700/50 transition duration-200 flex items-center justify-center"
       >
         <motion.svg
           xmlns="http://www.w3.org/2000/svg"

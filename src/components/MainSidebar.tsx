@@ -1,7 +1,12 @@
 "use client";
 
 import React from "react";
-import { Sidebar, SidebarBody, SidebarLink, useSidebar } from "@/components/ui/sidebar";
+import {
+  Sidebar,
+  SidebarBody,
+  SidebarLink,
+  useSidebar,
+} from "@/components/ui/sidebar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -152,10 +157,16 @@ const AccountMenu = () => {
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-56 mb-2 ml-2">
-        <DropdownMenuItem className="cursor-pointer" onClick={() => openUserProfile()}>
+        <DropdownMenuItem
+          className="cursor-pointer"
+          onClick={() => openUserProfile()}
+        >
           Manage Account
         </DropdownMenuItem>
-        <DropdownMenuItem className="cursor-pointer" onClick={() => signOut({ redirectUrl: "/" })}>
+        <DropdownMenuItem
+          className="cursor-pointer"
+          onClick={() => signOut({ redirectUrl: "/" })}
+        >
           Sign Out
         </DropdownMenuItem>
       </DropdownMenuContent>
@@ -164,9 +175,5 @@ const AccountMenu = () => {
 };
 
 export const MainSidebar = () => {
-  return (
-    <Sidebar>
-      <MainSidebarContent />
-    </Sidebar>
-  );
+  return <MainSidebarContent />;
 };

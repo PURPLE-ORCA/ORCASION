@@ -174,10 +174,6 @@ export default function Chat({
         ) : (
           <ChatQuickStarts onSelectPrompt={handleSendMessage} />
         )}
-        <div ref={messagesEndRef} />
-      </div>
-
-      <div className="p-4">
         {isAiThinking && (
           <div className="mb-4 overflow-hidden">
             <Reasoning isStreaming={true}>
@@ -185,7 +181,10 @@ export default function Chat({
             </Reasoning>
           </div>
         )}
+        <div ref={messagesEndRef} />
+      </div>
 
+      <div className="p-4">
         {/* Rate Limit Banner */}
         {showRateLimitBanner && (
           <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm flex items-center justify-between animate-in fade-in slide-in-from-bottom-2">

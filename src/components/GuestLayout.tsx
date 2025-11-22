@@ -1,5 +1,9 @@
 "use client";
 
-export default function GuestLayout({ children }: { children: React.ReactNode }) {
-  return <div className="flex h-full w-full items-center justify-center">{children}</div>;
+export default function GuestLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return <div className="h-full w-full overflow-y-auto">{children}</div>;
 }

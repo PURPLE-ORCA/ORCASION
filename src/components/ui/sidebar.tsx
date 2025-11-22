@@ -86,14 +86,31 @@ export const DesktopSidebar = ({
   const { open, setOpen, animate } = useSidebar();
   return (
     <>
+      {/* Blur Overlay */}
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 bg-black/20 backdrop-blur-sm z-30 hidden md:block"
+            onClick={() => setOpen(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Sidebar */}
       <motion.div
         className={cn(
-          "h-full px-4 py-4 hidden  md:flex md:flex-col bg-card dark:bg-card w-[300px] shrink-0 overflow-y-auto hide-scrollbar",
+          "fixed left-0 top-0 h-full px-4 py-4 hidden md:flex md:flex-col bg-card dark:bg-card overflow-y-auto hide-scrollbar z-40",
           className
         )}
+        initial={false}
         animate={{
           width: animate ? (open ? "300px" : "60px") : "300px",
         }}
+        transition={{ duration: 0.3, ease: "easeInOut" }}
         onMouseEnter={() => setOpen(true)}
         {...props}
       >

@@ -9,6 +9,7 @@
  */
 
 import type * as ai from "../ai.js";
+import type * as council from "../council.js";
 import type * as decision_context from "../decision_context.js";
 import type * as decisions from "../decisions.js";
 import type * as messages from "../messages.js";
@@ -20,29 +21,38 @@ import type {
   FunctionReference,
 } from "convex/server";
 
+declare const fullApi: ApiFromModules<{
+  ai: typeof ai;
+  council: typeof council;
+  decision_context: typeof decision_context;
+  decisions: typeof decisions;
+  messages: typeof messages;
+  users: typeof users;
+}>;
+
 /**
- * A utility for referencing Convex functions in your app's API.
+ * A utility for referencing Convex functions in your app's public API.
  *
  * Usage:
  * ```js
  * const myFunctionReference = api.myModule.myFunction;
  * ```
  */
-declare const fullApi: ApiFromModules<{
-  ai: typeof ai;
-  decision_context: typeof decision_context;
-  decisions: typeof decisions;
-  messages: typeof messages;
-  users: typeof users;
-}>;
-declare const fullApiWithMounts: typeof fullApi;
-
 export declare const api: FilterApi<
-  typeof fullApiWithMounts,
+  typeof fullApi,
   FunctionReference<any, "public">
 >;
+
+/**
+ * A utility for referencing Convex functions in your app's internal API.
+ *
+ * Usage:
+ * ```js
+ * const myFunctionReference = internal.myModule.myFunction;
+ * ```
+ */
 export declare const internal: FilterApi<
-  typeof fullApiWithMounts,
+  typeof fullApi,
   FunctionReference<any, "internal">
 >;
 

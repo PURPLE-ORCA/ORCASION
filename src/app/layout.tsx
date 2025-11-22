@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { MainSidebar } from "@/components/MainSidebar";
+import { Toaster } from "@/components/ui/sonner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -34,6 +35,7 @@ export default function RootLayout({
           className={`${geistSans.variable} ${geistMono.variable} antialiased bg-linear-to-br from-[#0a0a0a] via-[#1a001a] to-[#0a0a0a] text-white h-screen overflow-hidden `}
         >
           <ConvexClientProvider>{children}</ConvexClientProvider>
+          <Toaster richColors position="top-center" />
         </body>
       </html>
     </ClerkProvider>

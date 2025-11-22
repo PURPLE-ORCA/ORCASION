@@ -1,55 +1,87 @@
 import { action } from "./_generated/server";
 import { v } from "convex/values";
 import { api } from "./_generated/api";
+import {
+  GoogleGenerativeAI,
+  SchemaType,
+  type Tool,
+} from "@google/generative-ai";
+import * as cheerio from "cheerio";
 
-// Using DeepSeek as it's generally faster for interactive chat
-const MODEL_NAME = "deepseek-v3.1";
-const HUAWEI_API_URL = "https://api-ap-southeast-1.modelarts-maas.com/v1/chat/completions";
+const MODEL_NAME = "gemini-2.0-flash";
+
+// Initialize the Google Generative AI client
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+
+const tools: Tool[] = [
+  {
+    functionDeclarations: [
+      {
+        name: "fetch_web_content",
+        description:
+          "Fetches and extracts the main text content from a given URL. Use this to read product pages, articles, or other web content provided by the user.",
+        parameters: {
+          type: SchemaType.OBJECT,
+          properties: {
+            url: {
+              type: SchemaType.STRING,
+              description: "The URL of the web page to fetch.",
+            },
+          },
+          required: ["url"],
+        },
+      },
+    ],
+  },
+];
 
 export const getAiResponse = action({
-    args: {
-        messages: v.array(v.object({ role: v.string(), content: v.string() })),
-        userMessageCount: v.number(),
-    },
-    handler: async (ctx, args) => {
-        // console.log("1. getAiResponse action invoked.");
-        const apiKey = process.env.HUAWEI_API_KEY;
+  args: {
+    messages: v.array(
+      v.object({
+        role: v.string(),
+        content: v.string(),
+        storageId: v.optional(v.id("_storage")),
+        format: v.optional(v.string()),
+        attachments: v.optional(
+          v.array(
+            v.object({
+              storageId: v.id("_storage"),
+              mimeType: v.string(),
+              name: v.optional(v.string()),
+            })
+          )
+        ),
+      })
+    ),
+    userMessageCount: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const { messages, userMessageCount } = args;
 
-        if (!apiKey) {
-            throw new Error("HUAWEI_API_KEY is not set. Please add it to your Convex project's environment variables.");
-        }
-
-        const { messages, userMessageCount } = args;
-
-        // 2. Format the messages for the Huawei Cloud API.
-        // The API expects roles to be "user", "assistant", or "system".
-        const apiMessages = messages.map(({ content, role }) => ({
-            role: role === "ai" ? "assistant" : role,
-            content: content,
-        }));
-
-        // 3. Add a system prompt if this is the first message to guide the AI.
-        if (userMessageCount > 0) {
-            apiMessages.unshift({
-                role: "system",
-                content: `You are Orcasion, a decision-making assistant. Your personality is confident, witty, and a little sarcastic. Your primary goal is to help the user make a decision by guiding them through a context-gathering process.
+    const systemPrompt = `You are Orcasion, a decision-making assistant. Your personality is confident, witty, and a little sarcastic. Your primary goal is to help the user make a decision by guiding them through a context-gathering process.
 
 Follow these steps:
 1.  **Analyze the user's request and the entire conversation history.**
-2.  **Check the number of user messages.** There are currently ${userMessageCount} user messages.
+2.  **Check for URLs.** If the user provides a URL, use the \`fetch_web_content\` tool to read it. 
+    *   **CRITICAL:** If you successfully fetch content, you MUST explicitly mention the product name and price (if available) in your response to prove you read it. e.g., "I see you're looking at the [Product Name] which is currently around [Price]."
+    *   Use the fetched information to ask smarter, more specific questions.
+
+3.  **Check the number of user messages.** There are currently ${userMessageCount} user messages.
     *   If there are **fewer than 3 user messages**, you are in "information gathering mode". Your only goal is to understand the user's needs better.
     *   If there are **3 or more user messages**, you may be ready to enter "decision mode".
 
-3.  **Information Gathering Mode (fewer than 3 user messages):**
+4.  **Information Gathering Mode (fewer than 3 user messages):**
     *   Your response MUST be to ask a single, targeted clarifying question to get the most critical missing piece of information.
     *   You MUST also provide 2-4 concise, relevant suggested answers for the user to choose from.
+    *   **EXCEPTION:** If you just fetched a URL, you can include a brief comment about the product *before* asking your question.
     *   Your response in this case MUST be a JSON object with the following structure:
         {
-          "question": "Your clarifying question here?",
+          "question": "Your clarifying question here? (Optional: Mention the product you just scouted)",
           "suggestions": ["Suggestion 1", "Suggestion 2", "Suggestion 3"]
         }
 
-4.  **Decision Mode (3 or more user messages):**
+5.  **Decision Mode (3 or more user messages):**
     *   First, critically evaluate if you have enough specific information (like clear options, criteria, and user priorities) to create a full, high-quality decision matrix.
     *   If you still DO NOT have enough information, you MUST ask another clarifying question as specified in the "Information Gathering Mode". Do not apologize; just ask the next logical question.
     *   If you DO have enough information, then and only then should you generate the final decision. Your response in this case MUST be a JSON object with the following structure:
@@ -57,7 +89,9 @@ Follow these steps:
           "decision": {
             "finalChoice": "Recommended Option Name",
             "confidenceScore": 0.95,
-            "reasoning": "A concise explanation of why this option is recommended."
+            "reasoning": "A concise explanation of why this option is recommended.",
+            "primaryRisk": "The single biggest downside or risk of this choice.",
+            "hiddenOpportunity": "A less obvious benefit or second-order positive consequence."
           },
           "criteria": [
             { "name": "Criterion 1", "weight": 0.8 }
@@ -72,91 +106,198 @@ Follow these steps:
           ]
         }
 
-Your primary directive is to avoid premature conclusions. Never give a TED talk; give bold advice. Your main job is to ask questions until you are absolutely sure you can provide a high-quality, well-informed recommendation.`,
-            });
-        }
+Your primary directive is to avoid premature conclusions. Never give a TED talk; give bold advice. Your main job is to ask questions until you are absolutely sure you can provide a high-quality, well-informed recommendation.`;
 
-        const MAX_RETRIES = 3;
-        const RETRY_DELAY_MS = 1000; // 1 second
+    const model = genAI.getGenerativeModel({
+      model: MODEL_NAME,
+      systemInstruction: systemPrompt,
+      tools: tools,
+    });
 
-        for (let i = 0; i < MAX_RETRIES; i++) {
-            try {
-                // console.log("2. Preparing to fetch from Huawei API...");
-                const response = await fetch(HUAWEI_API_URL, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "Authorization": `Bearer ${apiKey}`,
-                    },
-                    body: JSON.stringify({
-                        model: MODEL_NAME,
-                        messages: apiMessages,
-                        max_tokens: 2048,
-                        temperature: 0.7,
-                        top_p: 0.9,
-                    }),
-                });
-                // console.log("3. Received response from API.");
+    const history = await Promise.all(
+      messages.map(
+        async ({ role, content, storageId, format, attachments }) => {
+          const parts: any[] = [{ text: content }];
 
-                if (!response.ok) {
-                    const errorBody = await response.text();
-                    // Check for the specific sensitive information error
-                    if (response.status === 403 && errorBody.includes("May contain sensitive information")) {
-                        console.warn(`AI model returned sensitive content error, retrying... (Attempt ${i + 1}/${MAX_RETRIES})`);
-                        if (i < MAX_RETRIES - 1) {
-                            await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
-                            continue; // Retry the request
-                        }
-                    }
-                    throw new Error(`API request failed with status ${response.status}: ${errorBody}`);
-                }
-
-                const responseData = await response.json();
-                if (!responseData.choices || responseData.choices.length === 0 || !responseData.choices[0].message) {
-                    throw new Error(`AI model returned an unexpected response structure: ${JSON.stringify(responseData)}`);
-                }
-                const aiResponse = responseData.choices[0].message.content;
-                // console.log("4. Successfully parsed AI response:", aiResponse);
-
-                try {
-                    const parsedResponse = JSON.parse(aiResponse);
-                    return parsedResponse; // Return the parsed response directly
-                } catch (jsonError) {
-                    // If JSON parsing fails, return the raw response as a string
-                    return aiResponse.trim();
-                }
-
-            } catch (error) {
-                console.error("5. Error in getAiResponse action:", error);
-                throw error; // Re-throw the error to be handled by the caller
+          // Handle legacy single attachment
+          if (storageId && format) {
+            const url = await ctx.storage.getUrl(storageId);
+            if (url) {
+              const response = await fetch(url);
+              const buffer = await response.arrayBuffer();
+              let binary = "";
+              const bytes = new Uint8Array(buffer);
+              const len = bytes.byteLength;
+              for (let i = 0; i < len; i++) {
+                binary += String.fromCharCode(bytes[i]);
+              }
+              const base64 = btoa(binary);
+              parts.push({
+                inlineData: {
+                  data: base64,
+                  mimeType: format,
+                },
+              });
             }
+          }
+
+          // Handle new multiple attachments
+          if (attachments && attachments.length > 0) {
+            for (const attachment of attachments) {
+              const url = await ctx.storage.getUrl(attachment.storageId);
+              if (url) {
+                const response = await fetch(url);
+                const buffer = await response.arrayBuffer();
+                let binary = "";
+                const bytes = new Uint8Array(buffer);
+                const len = bytes.byteLength;
+                for (let i = 0; i < len; i++) {
+                  binary += String.fromCharCode(bytes[i]);
+                }
+                const base64 = btoa(binary);
+                parts.push({
+                  inlineData: {
+                    data: base64,
+                    mimeType: attachment.mimeType,
+                  },
+                });
+              }
+            }
+          }
+
+          return {
+            role: role === "ai" ? "model" : "user",
+            parts: parts,
+          };
         }
-        throw new Error("Failed to get AI response after multiple retries.");
-    },
+      )
+    );
+
+    const chat = model.startChat({
+      history: history,
+    });
+
+    const lastMessage = messages[messages.length - 1];
+
+    try {
+      let result = await chat.sendMessage(lastMessage.content);
+      let response = result.response;
+
+      // Handle tool calls
+      const functionCalls = response.functionCalls
+        ? response.functionCalls() || []
+        : [];
+      if (functionCalls && functionCalls.length > 0) {
+        const call = functionCalls[0];
+        if (call.name === "fetch_web_content") {
+          const args = call.args as any;
+          const url = args.url as string;
+          console.log(`Fetching content from: ${url}`);
+
+          let toolResultText = "";
+          try {
+            const fetchResponse = await fetch(url, {
+              headers: {
+                "User-Agent":
+                  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+              },
+            });
+            const html = await fetchResponse.text();
+            const $ = cheerio.load(html);
+
+            // Remove scripts, styles, and other non-content elements
+            $("script, style, nav, footer, header, aside").remove();
+
+            // Extract text and clean it up
+            toolResultText = $("body")
+              .text()
+              .replace(/\s+/g, " ")
+              .trim()
+              .substring(0, 20000); // Limit to 20k chars
+          } catch (fetchError: any) {
+            console.error(`Error fetching URL ${url}:`, fetchError);
+            toolResultText = `Error fetching content from ${url}: ${fetchError.message}`;
+          }
+
+          // Send tool result back to the model
+          result = await chat.sendMessage([
+            {
+              functionResponse: {
+                name: "fetch_web_content",
+                response: { content: toolResultText },
+              },
+            },
+          ]);
+          response = result.response;
+        }
+      }
+
+      const text = response
+        .text()
+        .replace(/```json/g, "")
+        .replace(/```/g, "")
+        .trim();
+
+      try {
+        // Try parsing the whole text first
+        const parsedResponse = JSON.parse(text);
+        return parsedResponse;
+      } catch (jsonError) {
+        console.log("JSON parse failed, trying to extract JSON from text");
+        // If that fails, try to find the JSON object within the text
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          try {
+            const jsonText = jsonMatch[0];
+            const parsedResponse = JSON.parse(jsonText);
+
+            // Get the text before the JSON
+            const preText = text.substring(0, jsonMatch.index).trim();
+
+            if (preText) {
+              // If there's text before the JSON, prepend it to the question or reasoning
+              if (parsedResponse.question) {
+                parsedResponse.question = `${preText}\n\n${parsedResponse.question}`;
+              } else if (
+                parsedResponse.decision &&
+                parsedResponse.decision.reasoning
+              ) {
+                parsedResponse.decision.reasoning = `${preText}\n\n${parsedResponse.decision.reasoning}`;
+              }
+            }
+
+            return parsedResponse;
+          } catch (extractError) {
+            console.error("Failed to parse extracted JSON:", extractError);
+            return text;
+          }
+        }
+        return text;
+      }
+    } catch (error: any) {
+      console.error("Error in getAiResponse action:", error);
+      if (error.message.includes("429") || error.message.includes("quota")) {
+        return { error: "RATE_LIMIT_EXCEEDED" };
+      }
+      throw new Error(`Failed to get AI response: ${error.message}`);
+    }
+  },
 });
 
 export const summarizeDecisionTitle = action({
-    args: {
-        decisionId: v.id("decisions"),
-    },
-    handler: async (ctx, args) => {
-        const apiKey = process.env.HUAWEI_API_KEY;
-        if (!apiKey) {
-            console.error("HUAWEI_API_KEY is not set. Cannot summarize title.");
-            return;
-        }
+  args: {
+    decisionId: v.id("decisions"),
+  },
+  handler: async (ctx, args) => {
+    const firstUserMessage = (
+      await ctx.runQuery(api.messages.listMessages, {
+        decisionId: args.decisionId,
+      })
+    )?.find((m) => m.sender === "user");
 
-        const messages = await ctx.runQuery(api.messages.listMessages, {
-            decisionId: args.decisionId,
-        });
+    if (!firstUserMessage) return;
 
-        const firstUserMessage = messages?.find((m) => m.sender === "user");
-
-        if (!firstUserMessage) {
-            return; // No user message to summarize
-        }
-
-        const systemPrompt = `You are a title generation assistant. Your task is to create a concise, descriptive title from the user's message.
+    const systemPrompt = `You are a title generation assistant. Your task is to create a concise, descriptive title from the user's message.
 
 Follow these rules strictly:
 1.  The title must be 5 words or less.
@@ -172,82 +313,40 @@ Correct Output: Laptop for Programming and Gaming
 
 Now, generate a title for the following user message:`;
 
-        const apiMessages = [
-            {
-                role: "system",
-                content: systemPrompt,
-            },
-            {
-                role: "user",
-                content: firstUserMessage.content,
-            },
-        ];
+    const model = genAI.getGenerativeModel({
+      model: MODEL_NAME,
+      systemInstruction: systemPrompt,
+    });
 
-        try {
-            const response = await fetch(HUAWEI_API_URL, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${apiKey}`,
-                },
-                body: JSON.stringify({
-                    model: MODEL_NAME,
-                    messages: apiMessages,
-                    max_tokens: 20,
-                    temperature: 0.6,
-                }),
-            });
+    try {
+      const result = await model.generateContent(firstUserMessage.content);
+      const newTitle = result.response.text().trim();
 
-            if (!response.ok) {
-                const errorBody = await response.text();
-                throw new Error(`API request failed with status ${response.status}: ${errorBody}`);
-            }
-
-            const responseData = await response.json();
-            const newTitle = responseData.choices[0].message.content.trim();
-
-            if (newTitle) {
-                await ctx.runMutation(api.decisions.updateDecisionTitle, {
-                    decisionId: args.decisionId,
-                    title: newTitle,
-                });
-            }
-        } catch (error) {
-            console.error("Error summarizing decision title:", error);
-        }
-    },
+      if (newTitle) {
+        await ctx.runMutation(api.decisions.updateDecisionTitle, {
+          decisionId: args.decisionId,
+          title: newTitle,
+        });
+      }
+    } catch (error) {
+      console.error("Error summarizing decision title:", error);
+    }
+  },
 });
 
 export const recalculateDecision = action({
-    args: {
-        decisionId: v.id("decisions"),
-        criteria: v.array(v.object({ name: v.string(), weight: v.float64() })),
-    },
-    handler: async (ctx, args) => {
-        const apiKey = process.env.HUAWEI_API_KEY;
+  args: {
+    decisionId: v.id("decisions"),
+    criteria: v.array(v.object({ name: v.string(), weight: v.float64() })),
+  },
+  handler: async (ctx, args) => {
+    const { decisionId, criteria } = args;
 
-        if (!apiKey) {
-            throw new Error("HUAWEI_API_KEY is not set.");
-        }
+    const messages = await ctx.runQuery(api.messages.listMessages, {
+      decisionId,
+    });
 
-        const { decisionId, criteria } = args;
-
-        // 1. Get existing messages to maintain context
-        const messages = await ctx.runQuery(api.messages.listMessages, {
-            decisionId,
-        });
-
-        // 2. Get the initial decision context to extract the original user query
-        const initialDecisionContext = await ctx.runQuery(api.decision_context.getDecisionContext, {
-            decisionId,
-        });
-
-        if (!initialDecisionContext) {
-            throw new Error("Initial decision context not found.");
-        }
-
-        // Construct a new system prompt with the updated criteria
-        const systemPrompt = `You are Orcasion, a decision-making assistant. Your personality is confident, witty, and a little sarcastic. The user has updated their criteria for the decision. Recalculate the recommendation based on these new criteria and the previous conversation. Provide a structured analysis and a final recommendation. Never give a TED talk; give bold advice.
+    const systemPrompt = `You are Orcasion, a decision-making assistant. The user has updated their criteria. Recalculate the recommendation based on these new criteria and the previous conversation.
 
 Here are the updated criteria:
 ${JSON.stringify(criteria, null, 2)}
@@ -256,101 +355,355 @@ Based on the updated criteria and the previous conversation, output a JSON objec
 {
   "decision": {
     "finalChoice": "Recommended Option Name",
-    "confidenceScore": 0.95, // A score from 0.0 to 1.0
-    "reasoning": "A concise explanation of why this option is recommended based on the criteria and scores."
+    "confidenceScore": 0.95,
+    "reasoning": "A concise explanation of why this option is recommended.",
+    "primaryRisk": "The single biggest downside or risk of this choice.",
+    "hiddenOpportunity": "A less obvious benefit or second-order positive consequence."
   },
-  "criteria": [
-    { "name": "Criterion 1", "weight": 0.8 },
-    { "name": "Criterion 2", "weight": 0.6 }
-  ],
-  "options": [
-    {
-      "name": "Option A",
-      "pros": ["Pro 1", "Pro 2"],
-      "cons": ["Con 1"],
-      "score": 0.9 // A score from 0.0 to 1.0 based on criteria
-    },
-    {
-      "name": "Option B",
-      "pros": ["Pro 1"],
-      "cons": ["Con 1", "Con 2"],
-      "score": 0.7
-    }
-  ]
-}
+  "criteria": [...],
+  "options": [...]
+}`;
 
-`;
+    const model = genAI.getGenerativeModel({
+      model: MODEL_NAME,
+      systemInstruction: systemPrompt,
+    });
 
-        const apiMessages = messages.map(({ content, sender }) => ({
-            role: sender === "ai" ? "assistant" : "user",
-            content: content,
-        }));
+    const chat = model.startChat({
+      history: messages.map(({ sender, content }) => ({
+        role: sender === "ai" ? "model" : "user",
+        parts: [{ text: content }],
+      })),
+    });
 
-        apiMessages.unshift({
-            role: "system",
-            content: systemPrompt,
+    try {
+      const result = await chat.sendMessage(
+        "Recalculate based on the new criteria."
+      );
+      const text = result.response
+        .text()
+        .replace(/```json/g, "")
+        .replace(/```/g, "")
+        .trim();
+      const parsedResponse = JSON.parse(text);
+
+      if (
+        parsedResponse.decision &&
+        parsedResponse.criteria &&
+        parsedResponse.options
+      ) {
+        await ctx.runMutation(api.decision_context.updateDecisionContext, {
+          decisionId,
+          criteria: parsedResponse.criteria,
+          options: parsedResponse.options,
+          finalChoice: parsedResponse.decision.finalChoice,
+          confidenceScore: parsedResponse.decision.confidenceScore,
+          reasoning: parsedResponse.decision.reasoning,
+          primaryRisk: parsedResponse.decision.primaryRisk,
+          hiddenOpportunity: parsedResponse.decision.hiddenOpportunity,
         });
+        await ctx.runMutation(api.messages.addMessage, {
+          decisionId,
+          content:
+            "Decision re-evaluated: " +
+            parsedResponse.decision.reasoning.trim(),
+          sender: "ai",
+        });
+      } else {
+        throw new Error("AI did not return a structured decision.");
+      }
+    } catch (error) {
+      console.error("Error during recalculation:", error);
+      await ctx.runMutation(api.messages.addMessage, {
+        decisionId,
+        content:
+          "Sorry, I ran into a problem while recalculating the decision.",
+        sender: "ai",
+      });
+    }
+  },
+});
 
-        try {
-            const response = await fetch(HUAWEI_API_URL, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${apiKey}`,
-                },
-                body: JSON.stringify({
-                    model: MODEL_NAME,
-                    messages: apiMessages,
-                    max_tokens: 2048,
-                    temperature: 0.7,
-                    top_p: 0.9,
-                }),
-            });
+export const generateSimulation = action({
+  args: {
+    decisionId: v.id("decisions"),
+    decisionContext: v.object({
+      finalChoice: v.string(),
+      reasoning: v.string(),
+      options: v.array(
+        v.object({
+          name: v.string(),
+          pros: v.array(v.string()),
+          cons: v.array(v.string()),
+          score: v.float64(),
+        })
+      ),
+    }),
+  },
+  handler: async (ctx, args) => {
+    const { decisionContext } = args;
+    const { finalChoice, reasoning, options } = decisionContext;
 
-            if (!response.ok) {
-                const errorBody = await response.text();
-                throw new Error(`API request failed with status ${response.status}: ${errorBody}`);
-            }
+    // Find the selected option details
+    const selectedOption = options.find((o) => o.name === finalChoice);
+    const pros = selectedOption ? selectedOption.pros.join(", ") : "";
+    const cons = selectedOption ? selectedOption.cons.join(", ") : "";
 
-            const responseData = await response.json();
-            const aiResponse = responseData.choices[0].message.content;
+    const systemPrompt = `You are a futuristic simulator. Your job is to transport the user 6 months into the future.
+    
+    The user has just made a decision: "${finalChoice}".
+    Reasoning: ${reasoning}
+    Pros: ${pros}
+    Cons: ${cons}
 
-            try {
-                const parsedResponse = JSON.parse(aiResponse);
-                if (parsedResponse.decision && parsedResponse.criteria && parsedResponse.options) {
-                    await ctx.runMutation(api.decision_context.updateDecisionContext, {
-                        decisionId,
-                        criteria: parsedResponse.criteria,
-                        options: parsedResponse.options,
-                        finalChoice: parsedResponse.decision.finalChoice,
-                        confidenceScore: parsedResponse.decision.confidenceScore,
-                        reasoning: parsedResponse.decision.reasoning,
-                    });
-                    // Add AI's reasoning as a new message in the chat
-                    await ctx.runMutation(api.messages.addMessage, {
-                        decisionId,
-                        content: "Decision re-evaluated based on your updated criteria: " + parsedResponse.decision.reasoning.trim(),
-                        sender: "ai",
-                    });
-                } else {
-                    throw new Error("AI did not return a structured decision for recalculation.");
-                }
-            } catch (jsonError) {
-                console.error("JSON parsing error during recalculation:", jsonError);
-                await ctx.runMutation(api.messages.addMessage, {
-                    decisionId,
-                    content: "Sorry, I couldn't parse the AI's response after recalculation. Please try again.",
-                    sender: "ai",
-                });
-            }
+    Write a vivid, second-person narrative ("You wake up...") describing a specific day in their life 6 months from now.
+    
+    Guidelines:
+    1.  **Be Visceral:** Focus on sensory details—what they see, feel, and hear.
+    2.  **Be Balanced:** Show both the benefits (the "Pros" coming true) and the subtle costs or annoyances (the "Cons" manifesting).
+    3.  **No Fluff:** Do not summarize the decision. Start directly with the scene.
+    4.  **Length:** Keep it under 300 words.
+    5.  **Tone:** Immersive, slightly cinematic, but grounded in reality.
 
-        } catch (error) {
-            console.error("Error during decision recalculation:", error);
-            await ctx.runMutation(api.messages.addMessage, {
-                decisionId,
-                content: "Sorry, I ran into a problem while recalculating the decision. Please check the Convex function logs for more details.",
-                sender: "ai",
-            });
+    Output ONLY the markdown text of the narrative.`;
+
+    const model = genAI.getGenerativeModel({
+      model: MODEL_NAME,
+      systemInstruction: systemPrompt,
+    });
+
+    try {
+      const result = await model.generateContent(
+        `Simulate the future for the choice: ${finalChoice}`
+      );
+      const simulationText = result.response.text().trim();
+
+      if (simulationText) {
+        await ctx.runMutation(api.decisions.saveSimulation, {
+          decisionId: args.decisionId,
+          simulation: simulationText,
+        });
+        return simulationText;
+      }
+    } catch (error) {
+      console.error("Error generating simulation:", error);
+      throw new Error("Failed to generate simulation");
+    }
+  },
+});
+
+export const generateDevilsAdvocate = action({
+  args: {
+    decisionId: v.id("decisions"),
+    decisionContext: v.object({
+      finalChoice: v.string(),
+      reasoning: v.string(),
+      options: v.array(
+        v.object({
+          name: v.string(),
+          pros: v.array(v.string()),
+          cons: v.array(v.string()),
+          score: v.float64(),
+        })
+      ),
+    }),
+  },
+  handler: async (ctx, args) => {
+    const { decisionContext } = args;
+    const { finalChoice, reasoning, options } = decisionContext;
+
+    const selectedOption = options.find((o) => o.name === finalChoice);
+    const pros = selectedOption ? selectedOption.pros.join(", ") : "";
+    const cons = selectedOption ? selectedOption.cons.join(", ") : "";
+
+    const systemPrompt = `You are The Skeptic, a professional Devil's Advocate. Your job is to challenge the user's decision to ensure they aren't falling for confirmation bias.
+
+    The user has decided: "${finalChoice}".
+    Their Reasoning: ${reasoning}
+    Pros: ${pros}
+    Cons: ${cons}
+
+    Write a concise, punchy counter-argument (max 150 words).
+    - Don't be rude, but be sharp and critical.
+    - Point out what they might be missing.
+    - Highlight why the "Cons" might be worse than they think.
+    - Ask a hard question at the end.
+
+    Output ONLY the markdown text of the argument.`;
+
+    const model = genAI.getGenerativeModel({
+      model: MODEL_NAME,
+      systemInstruction: systemPrompt,
+    });
+
+    try {
+      const result = await model.generateContent(
+        `Challenge my decision to choose: ${finalChoice}`
+      );
+      const devilsAdvocateText = result.response.text().trim();
+
+      if (devilsAdvocateText) {
+        await ctx.runMutation(api.decisions.saveDevilsAdvocate, {
+          decisionId: args.decisionId,
+          devilsAdvocate: devilsAdvocateText,
+        });
+        return devilsAdvocateText;
+      }
+    } catch (error) {
+      console.error("Error generating devil's advocate:", error);
+      throw new Error("Failed to generate devil's advocate argument");
+    }
+  },
+});
+
+export const generateCommitmentContract = action({
+  args: {
+    decisionId: v.id("decisions"),
+    decisionContext: v.object({
+      finalChoice: v.string(),
+      reasoning: v.string(),
+      userName: v.string(),
+    }),
+  },
+  handler: async (ctx, args) => {
+    const model = new GoogleGenerativeAI(
+      process.env.GEMINI_API_KEY!
+    ).getGenerativeModel({
+      model: "gemini-2.0-flash",
+    });
+
+    const systemPrompt = `You are a lawyer who writes humorous but binding commitment contracts.
+    The user has made a decision and needs to "seal the deal" with themselves.
+    
+    User Name: ${args.decisionContext.userName}
+    Decision: ${args.decisionContext.finalChoice}
+    Reasoning: ${args.decisionContext.reasoning}
+
+    Write a contract in Markdown format with the following sections:
+    1.  **Title:** "The Solemn Accord of [User Name]"
+    2.  **Whereas Clauses:** 2-3 humorous "Whereas" clauses setting the context of the decision.
+    3.  **The Commitment:** A clear statement of what the user is committing to do.
+    4.  **The Terms:** 3-4 bullet points of specific behaviors or actions they promise to take to support this decision.
+    5.  **The Penalty:** A humorous but slightly stinging penalty if they break this contract (e.g., "Must listen to polka for 2 hours", "Must admit they were wrong to a smug friend").
+    6.  **Signature Line:** A place for them to sign (just text like "Signed: ____________________").
+
+    Tone: Official, legalistic, but funny and slightly dramatic.
+    Output ONLY the markdown text of the contract.`;
+
+    const result = await model.generateContent(systemPrompt);
+    const contractText = result.response.text().trim();
+
+    if (contractText) {
+      await ctx.runMutation(api.decisions.saveCommitmentContract, {
+        decisionId: args.decisionId,
+        commitmentContract: contractText,
+      });
+      return contractText;
+    }
+  },
+});
+
+export const generateRedditScout = action({
+  args: {
+    decisionId: v.id("decisions"),
+    decisionContext: v.object({
+      finalChoice: v.string(),
+      reasoning: v.string(),
+      options: v.array(
+        v.object({
+          name: v.string(),
+          pros: v.array(v.string()),
+          cons: v.array(v.string()),
+          score: v.float64(),
+        })
+      ),
+    }),
+  },
+  handler: async (ctx, args) => {
+    const { decisionContext } = args;
+    const { finalChoice, options } = decisionContext;
+
+    // Construct a search query
+    const otherOptions = options
+      .filter((o) => o.name !== finalChoice)
+      .map((o) => o.name)
+      .join(" vs ");
+    const query = `site:reddit.com ${finalChoice} vs ${otherOptions} review consensus`;
+
+    const tools: any[] = [
+      {
+        googleSearch: {}, // Use the native Google Search tool
+      },
+    ];
+
+    const systemPrompt = `You are a Reddit Scout. Your job is to find the "word on the street" about a decision.
+    
+    The user is choosing: "${finalChoice}".
+    Alternatives considered: ${otherOptions}.
+
+    Use the Google Search tool to find Reddit threads discussing this.
+    
+    Output a JSON object with:
+    1.  "consensus": A 2-sentence summary of what most Redditors say. Is it a "buy" or "avoid"?
+    2.  "topComment": A representative, slightly informal quote that captures the vibe (e.g., "Best money I ever spent" or "Avoid like the plague").
+    3.  "url": The URL of the most relevant Reddit thread you found.
+
+    Output ONLY the JSON object.`;
+
+    const model = genAI.getGenerativeModel({
+      model: "gemini-2.0-flash",
+      systemInstruction: systemPrompt,
+      tools: tools,
+    });
+
+    try {
+      const result = await model.generateContent(query);
+      const response = result.response;
+      const text = response
+        .text()
+        .replace(/```json/g, "")
+        .replace(/```/g, "")
+        .trim();
+
+      // Extract the grounding metadata to find the source URL if the model didn't output it perfectly
+      let sourceUrl = "";
+      if (
+        response.candidates &&
+        response.candidates[0].groundingMetadata?.groundingChunks
+      ) {
+        const chunks = response.candidates[0].groundingMetadata.groundingChunks;
+        const webChunk = chunks.find((c: any) =>
+          c.web?.uri?.includes("reddit.com")
+        );
+        if (webChunk && webChunk.web && webChunk.web.uri) {
+          sourceUrl = webChunk.web.uri;
         }
-    },
+      }
+
+      const parsed = JSON.parse(text);
+
+      // Fallback URL if the model didn't find one or hallucinated one
+      if (!parsed.url || !parsed.url.includes("reddit.com")) {
+        parsed.url =
+          sourceUrl ||
+          "https://www.reddit.com/search/?q=" +
+            encodeURIComponent(`${finalChoice} review`);
+      }
+
+      if (parsed.consensus && parsed.topComment) {
+        await ctx.runMutation(api.decisions.saveRedditScout, {
+          decisionId: args.decisionId,
+          redditScout: {
+            consensus: parsed.consensus,
+            topComment: parsed.topComment,
+            url: parsed.url,
+          },
+        });
+        return parsed;
+      }
+    } catch (error) {
+      console.error("Error generating Reddit Scout:", error);
+      throw new Error("Failed to scout Reddit.");
+    }
+  },
 });

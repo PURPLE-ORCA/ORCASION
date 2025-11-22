@@ -18,12 +18,16 @@ export function CustomSignUpForm() {
   const [username, setUsername] = React.useState("");
   const [pendingVerification, setPendingVerification] = React.useState(false);
   const [code, setCode] = React.useState("");
+  const [error, setError] = React.useState("");
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!isLoaded) {
       return;
     }
+
+    // Clear previous errors
+    setError("");
 
     try {
       await signUp.create({
@@ -38,6 +42,12 @@ export function CustomSignUpForm() {
       setPendingVerification(true);
     } catch (err: any) {
       console.error(JSON.stringify(err, null, 2));
+      if (err.errors) {
+        const errorMessage = err.errors.map((error: any) => error.longMessage).join(". ");
+        setError(errorMessage);
+      } else {
+        setError("An unknown error occurred. Please try again.");
+      }
     }
   };
 
@@ -60,6 +70,7 @@ export function CustomSignUpForm() {
       }
     } catch (err: any) {
       console.error(JSON.stringify(err, null, 2));
+      setError(err.errors?.[0]?.longMessage || "An error occurred during verification.");
     }
   };
 
@@ -72,6 +83,7 @@ export function CustomSignUpForm() {
         {!pendingVerification && (
           <form onSubmit={handleSubmit} className="space-y-4">
             <h2 className="text-2xl font-bold text-center">Create your account</h2>
+            {error && <p className="text-red-500 text-sm text-center bg-red-500/10 p-2 rounded-md">{error}</p>}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="firstName">First Name</Label>

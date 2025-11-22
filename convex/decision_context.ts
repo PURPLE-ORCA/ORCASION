@@ -18,47 +18,93 @@ export const getDecisionContext = query({
   },
 });
 
+import { GoogleGenerativeAI } from "@google/generative-ai";
+
+const ACTION_PLAN_MODEL_NAME = "gemini-2.5-flash";
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+
 export const generateActionPlan = action({
   args: {
     decisionId: v.id("decisions"),
   },
   handler: async (ctx, args) => {
-    const decisionContext = await ctx.runQuery(api.decision_context.getDecisionContext, {
-      decisionId: args.decisionId,
-    });
+    const decisionContext = await ctx.runQuery(
+      api.decision_context.getDecisionContext,
+      {
+        decisionId: args.decisionId,
+      }
+    );
 
-    if (!decisionContext || !decisionContext.finalChoice || !decisionContext.reasoning) {
-      throw new Error("Decision context, final choice, or reasoning not found.");
+    if (
+      !decisionContext ||
+      !decisionContext.finalChoice ||
+      !decisionContext.reasoning
+    ) {
+      throw new Error(
+        "Decision context, final choice, or reasoning not found."
+      );
     }
 
-    const prompt = conciergePrompt
+    const systemPrompt = conciergePrompt
       .replace("{finalChoice}", decisionContext.finalChoice)
       .replace("{reasoning}", decisionContext.reasoning);
 
-    const aiResponse = await ctx.runAction(api.ai.getAiResponse, {
-      messages: [{ role: "user", content: prompt }],
-      userMessageCount: 1, // This is a single-turn interaction for the action plan
+    const model = genAI.getGenerativeModel({
+      model: ACTION_PLAN_MODEL_NAME,
+      systemInstruction: systemPrompt,
     });
 
-    if (!aiResponse || typeof aiResponse !== "object" || !("actionPlan" in aiResponse)) {
-      throw new Error("Invalid AI response for action plan generation.");
+    try {
+      const result = await model.generateContent(
+        "Generate the action plan now."
+      );
+      const text = result.response
+        .text()
+        .replace("```json", "")
+        .replace("```", "")
+        .trim();
+      const parsedResponse = JSON.parse(text);
+
+      if (
+        !parsedResponse ||
+        typeof parsedResponse !== "object" ||
+        !("actionPlan" in parsedResponse)
+      ) {
+        throw new Error("Invalid AI response for action plan generation.");
+      }
+
+      const { actionPlan } = parsedResponse as { actionPlan: string[] };
+
+      // Convert to new format with completion tracking
+      const actionPlanItems = actionPlan.map((step) => ({
+        text: step,
+        completed: false,
+        completedAt: undefined,
+      }));
+
+      await ctx.runMutation(api.decision_context.updateActionPlan, {
+        decisionId: args.decisionId,
+        actionPlan: actionPlanItems,
+      });
+
+      return actionPlanItems;
+    } catch (error: any) {
+      console.error("Error generating action plan:", error);
+      throw new Error(`Failed to generate action plan: ${error.message}`);
     }
-
-    const { actionPlan } = aiResponse as { actionPlan: string[] };
-
-    await ctx.runMutation(api.decision_context.updateActionPlan, {
-      decisionId: args.decisionId,
-      actionPlan,
-    });
-
-    return actionPlan;
   },
 });
 
 export const updateActionPlan = mutation({
   args: {
     decisionId: v.id("decisions"),
-    actionPlan: v.array(v.string()),
+    actionPlan: v.array(
+      v.object({
+        text: v.string(),
+        completed: v.boolean(),
+        completedAt: v.optional(v.number()),
+      })
+    ),
   },
   handler: async (ctx, args) => {
     const decisionContext = await ctx.db
@@ -91,8 +137,10 @@ export const updateDecisionContext = mutation({
     reasoning: v.string(),
     finalChoice: v.string(),
     confidenceScore: v.float64(),
+    primaryRisk: v.optional(v.string()),
+    hiddenOpportunity: v.optional(v.string()),
     modelUsed: v.optional(
-      v.union(v.literal("deepseek-v3.1"), v.literal("qwen3"))
+      v.union(v.literal("gemini-2.0-flash"), v.literal("gemini-2.5-flash"))
     ),
   },
   handler: async (ctx, args) => {
@@ -109,6 +157,8 @@ export const updateDecisionContext = mutation({
         reasoning: args.reasoning,
         finalChoice: args.finalChoice,
         confidenceScore: args.confidenceScore,
+        primaryRisk: args.primaryRisk,
+        hiddenOpportunity: args.hiddenOpportunity,
         modelUsed: args.modelUsed,
       });
     } else {
@@ -118,6 +168,8 @@ export const updateDecisionContext = mutation({
         reasoning: args.reasoning,
         finalChoice: args.finalChoice,
         confidenceScore: args.confidenceScore,
+        primaryRisk: args.primaryRisk,
+        hiddenOpportunity: args.hiddenOpportunity,
         modelUsed: args.modelUsed,
       });
     }

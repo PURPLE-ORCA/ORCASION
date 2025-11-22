@@ -24,6 +24,17 @@ export default defineSchema({
     sender: v.union(v.literal("user"), v.literal("ai")),
     content: v.string(),
     suggestions: v.optional(v.array(v.string())),
+    storageId: v.optional(v.id("_storage")), // Deprecated: use attachments
+    format: v.optional(v.string()), // Deprecated: use attachments
+    attachments: v.optional(
+      v.array(
+        v.object({
+          storageId: v.id("_storage"),
+          mimeType: v.string(),
+          name: v.optional(v.string()),
+        })
+      )
+    ),
   }).index("by_decisionId", ["decisionId"]),
 
   decision_context: defineTable({
@@ -45,9 +56,47 @@ export default defineSchema({
     reasoning: v.string(),
     finalChoice: v.string(),
     confidenceScore: v.float64(),
-    actionPlan: v.optional(v.array(v.string())),
+    primaryRisk: v.optional(v.string()),
+    hiddenOpportunity: v.optional(v.string()),
+    actionPlan: v.optional(
+      v.array(
+        v.union(
+          v.string(), // Old format (for migration)
+          v.object({
+            text: v.string(),
+            completed: v.boolean(),
+            completedAt: v.optional(v.number()),
+          })
+        )
+      )
+    ),
     modelUsed: v.optional(
-      v.union(v.literal("deepseek-v3.1"), v.literal("qwen3"))
+      v.union(v.literal("gemini-2.0-flash"), v.literal("gemini-2.5-flash"))
+    ),
+    simulation: v.optional(v.string()),
+    devilsAdvocate: v.optional(v.string()),
+    commitmentContract: v.optional(v.string()),
+    isSigned: v.optional(v.boolean()),
+    redditScout: v.optional(
+      v.object({
+        consensus: v.string(),
+        topComment: v.string(),
+        url: v.string(),
+      })
     ),
   }).index("by_decisionId", ["decisionId"]),
+
+  council_sessions: defineTable({
+    decisionId: v.id("decisions"),
+    publicToken: v.string(),
+    status: v.string(), // "active", "closed"
+  }).index("by_token", ["publicToken"]),
+
+  council_votes: defineTable({
+    sessionId: v.id("council_sessions"),
+    voterName: v.string(),
+    optionName: v.string(),
+    comment: v.optional(v.string()),
+    timestamp: v.number(),
+  }).index("by_sessionId", ["sessionId"]),
 });

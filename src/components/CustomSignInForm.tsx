@@ -13,12 +13,14 @@ export function CustomSignInForm() {
   const router = useRouter();
   const [emailAddress, setEmailAddress] = React.useState("");
   const [password, setPassword] = React.useState("");
+  const [error, setError] = React.useState("");
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!isLoaded) {
       return;
     }
+    setError("");
 
     try {
       const result = await signIn.create({
@@ -30,10 +32,13 @@ export function CustomSignInForm() {
         await setActive({ session: result.createdSessionId });
         router.push("/");
       } else {
+        /* Set error messages */
         console.error(JSON.stringify(result, null, 2));
+        setError("An unknown error occurred. Please try again.");
       }
     } catch (err: any) {
       console.error(JSON.stringify(err, null, 2));
+      setError(err.errors?.[0]?.longMessage || "Invalid email or password.");
     }
   };
 
@@ -45,6 +50,7 @@ export function CustomSignInForm() {
       >
         <form onSubmit={handleSubmit} className="space-y-4">
           <h2 className="text-2xl font-bold text-center">Welcome Back</h2>
+          {error && <p className="text-red-500 text-sm text-center bg-red-500/10 p-2 rounded-md">{error}</p>}
           <div>
             <Label htmlFor="email">Email</Label>
             <Input

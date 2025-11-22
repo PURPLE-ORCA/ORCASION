@@ -8,9 +8,9 @@ import Message from "./Message";
 import { Send, Paperclip, X, Upload, File as FileIcon } from "lucide-react";
 import { useParams } from "next/navigation";
 import { Button } from "./ui/button";
-import AnimatedInput from "./ui/AnimatedInput";
 import { Reasoning, ReasoningTrigger } from "@/components/ui/reasoning";
 import { ChatQuickStarts } from "./ChatQuickStarts";
+import { PlaceholdersAndVanishInput } from "./ui/placeholders-and-vanish-input";
 
 export default function Chat({
   showReport,
@@ -179,7 +179,7 @@ export default function Chat({
 
       <div className="p-4">
         {isAiThinking && (
-          <div className="mb-4">
+          <div className="mb-4 overflow-hidden">
             <Reasoning isStreaming={true}>
               <ReasoningTrigger />
             </Reasoning>
@@ -229,42 +229,25 @@ export default function Chat({
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="flex items-center gap-2">
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileSelect}
-            className="hidden"
-            multiple
-          />
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            className="shrink-0"
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <Paperclip size={18} />
-          </Button>
-          <AnimatedInput
-            value={content}
-            onChange={(value) => setContent(value)}
-            label={
-              selectedFiles.length > 0
-                ? "Add a message about these files..."
-                : "Your message"
-            }
-            className="flex-1"
-          />
-          <Button
-            type="submit"
-            disabled={
-              (!content.trim() && selectedFiles.length === 0) || isAiThinking
-            }
-          >
-            Send
-          </Button>
-        </form>
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileSelect}
+          className="hidden "
+          multiple
+        />
+        <PlaceholdersAndVanishInput
+          placeholders={[
+            "Describe your decision...",
+            "What are you trying to decide?",
+            "Tell me about your options...",
+            "What's on your mind?",
+            "Need help making a choice?",
+          ]}
+          onChange={(e) => setContent(e.target.value)}
+          onSubmit={handleSubmit}
+          onAttachClick={() => fileInputRef.current?.click()}
+        />
       </div>
     </div>
   );
